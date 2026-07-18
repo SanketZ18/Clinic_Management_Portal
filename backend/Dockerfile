@@ -11,12 +11,12 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # Stage 2: Run the application
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre
 WORKDIR /app
 COPY --from=build /app/target/homeoscribe-backend-1.0.0.jar app.jar
 
-# Expose port 8080
-EXPOSE 8080
+# Expose port 8090
+EXPOSE 8090
 
 # Run the jar file
 ENTRYPOINT ["java", "-jar", "app.jar"]

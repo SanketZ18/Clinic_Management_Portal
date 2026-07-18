@@ -1,0 +1,71 @@
+server:
+  port: 8080
+  tomcat:
+    # Tune Tomcat thread pool — prevents request starvation under high load
+    threads:
+      max: 200          # Max request-handling threads (default 200 is fine for free-tier backend)
+      min-spare: 20     # Always keep 20 threads warm and ready
+    connection-timeout: 5000ms   # Drop connections that take more than 5s to handshake
+
+spring:
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb+srv://akaramsalunke:Abb1234567%40@clinic.l3elgjk.mongodb.net/ClinicSystem?appName=Clinic}
+      database: ${MONGO_DB:ClinicSystem}
+      pool:
+        max-size: 50
+        min-size: 5
+        max-wait-time-ms: 5000
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:homeoscribe-super-secret-key-2024-production-clinic-management-platform}
+  access-token-expiration: 604800000    # 7 days in ms
+
+# CORS
+cors:
+  allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+
+# Spring Boot Actuator — metrics and health monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,caches,threaddump,loggers
+  endpoint:
+    health:
+      show-details: when-authorized
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true    # Track request latency histograms
+  server:
+    port: 8080   # Expose actuator on the same port (secured via SecurityConfig)
+
+# Logging — suppress noisy output, only show our app logs and errors
+logging:
+  level:
+    root: ERROR
+    com.homeoscribe: INFO
+    org.springframework.security: ERROR
+    org.springframework.web: ERROR
+    org.springframework.data: ERROR
+    org.springframework.boot: ERROR
+    org.mongodb.driver: ERROR
+    org.mongodb.driver.cluster: OFF
+    org.mongodb.driver.connection: OFF
+    org.mongodb.driver.protocol: OFF
+    org.springframework.boot.devtools: OFF
+    org.springframework.boot.autoconfigure: ERROR
+  pattern:
+    console: "%d{HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

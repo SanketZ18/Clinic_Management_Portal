@@ -12,5 +12,21 @@ export default defineConfig({
         secure: false,
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            // Split heavy PDF tools into their own chunk
+            if (id.includes('jspdf') || id.includes('html2canvas')) {
+              return 'pdf-utils';
+            }
+            // Put other libraries in vendor chunk
+            return 'vendor';
+          }
+        }
+      }
+    }
   }
 })

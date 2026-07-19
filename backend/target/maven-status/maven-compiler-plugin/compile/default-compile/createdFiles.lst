@@ -3,13 +3,16 @@ com\homeoscribe\service\JwtService.class
 com\homeoscribe\service\PrescriptionService.class
 com\homeoscribe\config\CacheConfig.class
 com\homeoscribe\exception\GlobalExceptionHandler.class
+com\homeoscribe\controller\AdminDoctorController.class
 com\homeoscribe\exception\AuthException.class
 com\homeoscribe\controller\PrescriptionController.class
 com\homeoscribe\dto\request\SearchRequest.class
 com\homeoscribe\dto\request\PrescriptionRequest.class
+com\homeoscribe\controller\DoctorController.class
 com\homeoscribe\repository\DoctorRepository.class
 com\homeoscribe\dto\request\DoctorAccessRequest.class
 com\homeoscribe\model\Doctor.class
+com\homeoscribe\service\AuthService.class
 com\homeoscribe\HomeoscribeApplication.class
 com\homeoscribe\config\SecurityConfig.class
 com\homeoscribe\config\AsyncConfig.class
@@ -28,7 +31,9 @@ com\homeoscribe\dto\request\RegisterRequest.class
 com\homeoscribe\dto\response\DoctorProfileResponse$DoctorProfileResponseBuilder.class
 com\homeoscribe\dto\response\ApiResponse.class
 com\homeoscribe\dto\response\AuthResponse.class
+com\homeoscribe\controller\AuthController.class
 com\homeoscribe\filter\JwtAuthFilter.class
+com\homeoscribe\service\DoctorService.class
 com\homeoscribe\controller\SearchController.class
 com\homeoscribe\exception\DuplicateResourceException.class
 com\homeoscribe\service\SearchService.class

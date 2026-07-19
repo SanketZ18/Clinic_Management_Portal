@@ -13,6 +13,7 @@ import {
   UserX,
   Mail,
   Phone,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,6 +28,8 @@ const ManageDoctors = () => {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [savingDoctorId, setSavingDoctorId] = useState('');
+  const [deletingDoctorId, setDeletingDoctorId] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const isSuperAdmin = isSuperAdminRole(doctor?.role);
 
@@ -108,6 +111,31 @@ const ManageDoctors = () => {
       toast.error(error.response?.data?.message || 'Could not update access');
     } finally {
       setSavingDoctorId('');
+    }
+  };
+
+  const deleteDoctor = async (item) => {
+    if (!item?.doctorId) return;
+    if (item.doctorId === doctor?.doctorId) {
+      toast.error('You cannot delete your own account');
+      return;
+    }
+    if (isSuperAdminRole(item.role)) {
+      toast.error('Super admin accounts cannot be deleted');
+      return;
+    }
+
+    setDeletingDoctorId(item.doctorId);
+    setConfirmDeleteId(null);
+    try {
+      await api.delete(`/admin/doctors/${item.doctorId}`);
+      setDoctors((current) => current.filter((entry) => entry.doctorId !== item.doctorId));
+      toast.success(`${item.fullName || 'Doctor'} has been deleted`);
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || 'Could not delete doctor');
+    } finally {
+      setDeletingDoctorId('');
     }
   };
 
@@ -252,37 +280,78 @@ const ManageDoctors = () => {
                         </span>
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                        <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', justifyContent: 'center' }}>
+                          {/* Allow */}
                           <button
                             type="button"
                             className={accessAllowed ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'}
                             onClick={() => updateAccess(item, true)}
                             disabled={savingDoctorId === item.doctorId || isSelf || isSuperAdminDoctor}
-                            title={isSuperAdminDoctor ? 'Super admin access is always allowed' : isSelf ? 'Your own admin account cannot be changed' : 'Allow access'}
+                            title={isSuperAdminDoctor ? 'Super admin access is always allowed' : isSelf ? 'Your own account cannot be changed' : 'Allow access'}
+                            style={{ padding: '6px 8px', minWidth: 'unset' }}
                           >
                             {savingDoctorId === item.doctorId ? (
-                              'Saving...'
+                              <span className="spinner" style={{ width: 14, height: 14 }} />
                             ) : (
-                              <>
-                                <UserCheck size={14} /> Allow
-                              </>
+                              <UserCheck size={15} />
                             )}
                           </button>
+
+                          {/* Decline */}
                           <button
                             type="button"
                             className={!accessAllowed ? 'btn btn-danger btn-sm' : 'btn btn-ghost btn-sm'}
                             onClick={() => updateAccess(item, false)}
                             disabled={savingDoctorId === item.doctorId || isSelf || isSuperAdminDoctor}
-                            title={isSuperAdminDoctor ? 'Super admin access is always allowed' : isSelf ? 'Your own admin account cannot be changed' : 'Decline access'}
+                            title={isSuperAdminDoctor ? 'Super admin access is always allowed' : isSelf ? 'Your own account cannot be changed' : 'Decline access'}
+                            style={{ padding: '6px 8px', minWidth: 'unset' }}
                           >
                             {savingDoctorId === item.doctorId ? (
-                              'Saving...'
+                              <span className="spinner" style={{ width: 14, height: 14 }} />
                             ) : (
-                              <>
-                                <UserX size={14} /> Decline
-                              </>
+                              <UserX size={15} />
                             )}
                           </button>
+
+                          {/* Delete */}
+                          {confirmDeleteId === item.doctorId ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => deleteDoctor(item)}
+                                disabled={deletingDoctorId === item.doctorId}
+                                title="Confirm delete"
+                                style={{ padding: '6px 8px', minWidth: 'unset', background: '#dc2626' }}
+                              >
+                                {deletingDoctorId === item.doctorId ? (
+                                  <span className="spinner" style={{ width: 14, height: 14 }} />
+                                ) : (
+                                  <Trash2 size={15} />
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => setConfirmDeleteId(null)}
+                                title="Cancel"
+                                style={{ padding: '6px 8px', minWidth: 'unset', fontSize: '0.7rem' }}
+                              >
+                                ✕
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => setConfirmDeleteId(item.doctorId)}
+                              disabled={isSelf || isSuperAdminDoctor || deletingDoctorId === item.doctorId}
+                              title={isSuperAdminDoctor ? 'Super admin cannot be deleted' : isSelf ? 'Cannot delete your own account' : 'Delete doctor'}
+                              style={{ padding: '6px 8px', minWidth: 'unset', color: 'var(--danger, #dc2626)' }}
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

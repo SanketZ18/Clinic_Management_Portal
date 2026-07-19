@@ -131,4 +131,29 @@ public class DoctorService {
         log.info("Doctor access updated: {} -> {}", target.getEmail(), isActive);
         return authService.mapToProfileResponse(target);
     }
+
+    @CacheEvict(value = "doctorProfiles", key = "#result != null ? #result.toLowerCase() : ''", condition = "#result != null")
+    public String deleteDoctor(String adminEmail, String doctorId) {
+        Doctor admin = doctorRepository.findByEmail(adminEmail.toLowerCase())
+                .orElseThrow(() -> new AuthException("Admin not found"));
+        if (!DoctorAccessPolicy.isSuperAdmin(admin)) {
+            throw new AuthException("Only super admin can delete doctors");
+        }
+
+        Doctor target = doctorRepository.findByDoctorId(doctorId)
+                .orElseThrow(() -> new AuthException("Doctor not found"));
+
+        if (DoctorAccessPolicy.isSuperAdmin(target)) {
+            throw new ValidationException("Super admin accounts cannot be deleted");
+        }
+
+        if (admin.getId() != null && admin.getId().equals(target.getId())) {
+            throw new ValidationException("You cannot delete your own account");
+        }
+
+        String deletedEmail = target.getEmail();
+        doctorRepository.delete(target);
+        log.info("Doctor deleted by {}: {}", adminEmail, deletedEmail);
+        return deletedEmail;
+    }
 }

@@ -36,4 +36,13 @@ public class AdminDoctorController {
         DoctorProfileResponse updated = doctorService.updateDoctorAccess(userDetails.getUsername(), doctorId, request.getIsActive());
         return ResponseEntity.ok(ApiResponse.success("Doctor access updated successfully", updated));
     }
+
+    @DeleteMapping("/{doctorId}")
+    public ResponseEntity<ApiResponse<String>> deleteDoctor(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String doctorId) {
+
+        doctorService.deleteDoctor(userDetails.getUsername(), doctorId);
+        return ResponseEntity.ok(ApiResponse.success("Doctor deleted successfully", doctorId));
+    }
 }

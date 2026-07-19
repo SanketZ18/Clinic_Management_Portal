@@ -107,7 +107,7 @@ const Footer = () => {
         <div className="footer-bottom">
           <p>© {year} Dr. Salunkhe's Digital Clinic Platform. All rights reserved.</p>
           <p style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            Built with <Heart size={14} color="var(--secondary)" fill="var(--secondary)" /> for Homeopathic Doctors | System Developed By Sanket Zagade.
+            Built with <Heart size={14} color="var(--secondary)" fill="var(--secondary)" /> for all Doctors | System Developed By Sanket Zagade.
           </p>
         </div>
       </div>

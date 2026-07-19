@@ -16,7 +16,7 @@ const PUBLIC_AUTH_PATHS = new Set([
 // Request interceptor — attach access token
 api.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('accessToken');
+    const token = localStorage.getItem('accessToken');
     const requestPath = config.url || '';
     const isPublicRequest = Array.from(PUBLIC_AUTH_PATHS).some((path) =>
       requestPath === path || requestPath.endsWith(path)
@@ -35,8 +35,8 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('doctor');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('doctor');
       if (!window.location.pathname.startsWith('/auth')) {
         window.location.href = '/auth?mode=login&session=expired';
       }

@@ -19,14 +19,14 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Restore session from sessionStorage
-    const token = sessionStorage.getItem('accessToken');
-    const storedDoctor = sessionStorage.getItem('doctor');
+    // Restore session from localStorage
+    const token = localStorage.getItem('accessToken');
+    const storedDoctor = localStorage.getItem('doctor');
     if (token && storedDoctor) {
       try {
         setDoctor(normalizeDoctor(JSON.parse(storedDoctor)));
       } catch (e) {
-        sessionStorage.removeItem('doctor');
+        localStorage.removeItem('doctor');
       }
     }
     setLoading(false);
@@ -37,8 +37,8 @@ export const AuthProvider = ({ children }) => {
     const { accessToken, doctor: doctorData } = response.data.data || {};
     const nextDoctor = normalizeDoctor(doctorData);
     if (accessToken) {
-      sessionStorage.setItem('accessToken', accessToken);
-      sessionStorage.setItem('doctor', JSON.stringify(nextDoctor));
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('doctor', JSON.stringify(nextDoctor));
       setDoctor(nextDoctor);
     }
     return nextDoctor;
@@ -48,8 +48,8 @@ export const AuthProvider = ({ children }) => {
     const response = await api.post('/auth/login', data);
     const { accessToken, doctor: doctorData } = response.data.data;
     const nextDoctor = normalizeDoctor(doctorData);
-    sessionStorage.setItem('accessToken', accessToken);
-    sessionStorage.setItem('doctor', JSON.stringify(nextDoctor));
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('doctor', JSON.stringify(nextDoctor));
     setDoctor(nextDoctor);
     return nextDoctor;
   }, []);
@@ -60,8 +60,8 @@ export const AuthProvider = ({ children }) => {
     } catch (e) {
       // Logout even if API fails
     } finally {
-      sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('doctor');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('doctor');
       setDoctor(null);
     }
   }, []);
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
   const updateDoctor = useCallback((updatedDoctor) => {
     const nextDoctor = normalizeDoctor(updatedDoctor);
     setDoctor(nextDoctor);
-    sessionStorage.setItem('doctor', JSON.stringify(nextDoctor));
+    localStorage.setItem('doctor', JSON.stringify(nextDoctor));
   }, []);
 
   const refreshProfile = useCallback(async () => {

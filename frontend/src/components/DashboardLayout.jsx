@@ -15,13 +15,13 @@ const DashboardLayout = () => {
   const basePath = isSuperAdminDashboard ? '/super-admin' : '/doctor';
   const navItems = [
     { to: basePath, icon: LayoutDashboard, label: 'Overview', desc: 'Dashboard' },
-    { to: `${basePath}/new-patient`, icon: Stethoscope, label: 'New Patient', desc: 'Prescription' },
-    { to: `${basePath}/logs`, icon: ClipboardList, label: 'Day Report', desc: 'Register & export' },
+    { to: `${basePath}/new-patient`, icon: Stethoscope, label: 'New Patient', desc: 'Prescription Generation' },
+    { to: `${basePath}/logs`, icon: ClipboardList, label: 'Report Generation', desc: 'Generate & export' },
     ...(isSuperAdminDashboard
       ? [{ to: `${basePath}/manage-doctors`, icon: Shield, label: 'Manage Doctors', desc: 'Access control' }]
       : []),
     { to: `${basePath}/research`, icon: BookOpen, label: 'Research Feed', desc: 'Clinical insights' },
-    { to: `${basePath}/profile`, icon: User, label: 'My Profile', desc: 'Clinic settings' },
+    { to: `${basePath}/profile`, icon: User, label: 'My Profile', desc: 'Manage & update profile' },
   ];
 
   const handleLogout = async () => {

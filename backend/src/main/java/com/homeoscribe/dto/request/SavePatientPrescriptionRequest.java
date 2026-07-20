@@ -7,8 +7,15 @@ import lombok.Data;
 
 import java.util.List;
 
+/**
+ * Request DTO for saving (creating or updating) a patient's prescription.
+ * If the patient already exists (matched by name + phone), a new PrescriptionEntry
+ * is appended — existing data is never overwritten.
+ */
 @Data
-public class PrescriptionRequest {
+public class SavePatientPrescriptionRequest {
+
+    // ── Patient static / demographic fields ──────────────────────────────────
     @NotBlank(message = "Patient name is required")
     private String patientName;
 
@@ -17,12 +24,16 @@ public class PrescriptionRequest {
 
     private String gender;
     private String bloodGroup;
-    private String visitType;
+
+    @NotBlank(message = "Mobile number is required")
     private String phone;
+
     private String email;
     private String address;
     private String referredBy;
 
+    // ── Visit / prescription fields ───────────────────────────────────────────
+    private String visitType;          // New | Follow-up | Emergency
     private String chiefComplaint;
     private String diagnosis;
     private String presentHistory;
@@ -45,7 +56,7 @@ public class PrescriptionRequest {
 
     private List<String> rubrics;
 
-    @NotEmpty(message = "Prescription must contain at least one remedy")
+    @NotEmpty(message = "At least one remedy is required")
     @Valid
     private List<RemedyItem> remedies;
 

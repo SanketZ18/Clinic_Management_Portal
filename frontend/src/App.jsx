@@ -13,7 +13,7 @@ import Auth from './pages/Auth';
 import DashboardLayout from './components/DashboardLayout';
 import DashboardHome from './pages/dashboard/DashboardHome';
 import NewPatient from './pages/dashboard/NewPatient';
-import PatientLog from './pages/dashboard/PatientLog';
+import DayReport from './pages/dashboard/DayReport';
 import Research from './pages/dashboard/Research';
 import Profile from './pages/dashboard/Profile';
 import ManageDoctors from './pages/dashboard/ManageDoctors';
@@ -47,7 +47,7 @@ function App() {
           }>
             <Route index element={<DashboardHome />} />
             <Route path="new-patient" element={<NewPatient />} />
-            <Route path="logs" element={<PatientLog />} />
+            <Route path="logs" element={<DayReport />} />
             <Route path="research" element={<Research />} />
             <Route path="profile" element={<Profile />} />
             <Route path="inquiry" element={<Navigate to="/doctor/new-patient" replace />} />
@@ -62,7 +62,7 @@ function App() {
           }>
             <Route index element={<DashboardHome />} />
             <Route path="new-patient" element={<NewPatient />} />
-            <Route path="logs" element={<PatientLog />} />
+            <Route path="logs" element={<DayReport />} />
             <Route path="research" element={<Research />} />
             <Route path="profile" element={<Profile />} />
             <Route path="manage-doctors" element={<ManageDoctors />} />

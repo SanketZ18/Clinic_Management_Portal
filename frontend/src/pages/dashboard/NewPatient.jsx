@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import {
   CalendarDays,
@@ -11,6 +11,12 @@ import {
   MessageCircle,
   Send,
   Shield,
+  Search,
+  UserCheck,
+  UserPlus,
+  Loader2,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import {
@@ -21,6 +27,7 @@ import {
   registerTodayPatient,
   trySharePdf,
 } from '../../utils/clinicDocuments';
+import { searchPatient, savePatientPrescription } from '../../services/patientApi';
 
 const initialFormState = {
   patientName: '',
@@ -67,10 +74,24 @@ const quickFields = [
   { name: 'referredBy', label: 'Referred by', placeholder: 'Enter referrer name (optional)' },
 ];
 
+// Search status states
+const SEARCH_STATUS = {
+  IDLE: 'idle',
+  SEARCHING: 'searching',
+  FOUND: 'found',
+  NOT_FOUND: 'not_found',
+};
+
 const NewPatient = () => {
   const { doctor } = useAuth();
   const [formData, setFormData] = useState(initialFormState);
   const lastRegisteredKeyRef = useRef('');
+
+  // Patient search state
+  const [searchName, setSearchName] = useState('');
+  const [searchPhone, setSearchPhone] = useState('');
+  const [searchStatus, setSearchStatus] = useState(SEARCH_STATUS.IDLE);
+  const [foundPatient, setFoundPatient] = useState(null);
 
   useEffect(() => {
     const savedDraft = sessionStorage.getItem('scribeDraftCase');
@@ -115,18 +136,79 @@ const NewPatient = () => {
     setFormData(initialFormState);
     sessionStorage.removeItem('scribeDraftCase');
     lastRegisteredKeyRef.current = '';
+    setSearchStatus(SEARCH_STATUS.IDLE);
+    setFoundPatient(null);
+    setSearchName('');
+    setSearchPhone('');
     toast.success('Form cleared');
   };
+
+  // ── Patient Search & Auto-fill ──────────────────────────────────────────────
+
+  const handleSearchPatient = useCallback(async () => {
+    if (!searchName.trim() || !searchPhone.trim()) {
+      toast.error('Please enter both patient name and mobile number to search');
+      return;
+    }
+
+    setSearchStatus(SEARCH_STATUS.SEARCHING);
+    setFoundPatient(null);
+
+    try {
+      const patient = await searchPatient({ patientName: searchName.trim(), phone: searchPhone.trim() });
+
+      if (patient) {
+        setFoundPatient(patient);
+        setSearchStatus(SEARCH_STATUS.FOUND);
+        toast.success(`Patient found: ${patient.patientName} (${patient.totalVisits} previous visit${patient.totalVisits !== 1 ? 's' : ''})`);
+      } else {
+        setSearchStatus(SEARCH_STATUS.NOT_FOUND);
+      }
+    } catch (err) {
+      console.error('Patient search error:', err);
+      setSearchStatus(SEARCH_STATUS.NOT_FOUND);
+      toast.error('Search failed. Please try again.');
+    }
+  }, [searchName, searchPhone]);
+
+  const handleAutoFill = () => {
+    if (!foundPatient) return;
+    updateForm({
+      patientName: foundPatient.patientName || '',
+      age: foundPatient.age || '',
+      gender: foundPatient.gender || 'Male',
+      bloodGroup: foundPatient.bloodGroup || '',
+      phone: foundPatient.phone || '',
+      email: foundPatient.email || '',
+      address: foundPatient.address || '',
+      referredBy: foundPatient.referredBy || '',
+    });
+    toast.success('Patient information auto-filled from records');
+  };
+
+  // ── Save to Database ────────────────────────────────────────────────────────
+
+  const saveToDatabase = async () => {
+    try {
+      await savePatientPrescription(formData);
+      toast.success('Patient record saved to database');
+    } catch (err) {
+      console.error('Failed to save patient to DB:', err);
+      toast.error('Could not save to database — record saved locally only');
+    }
+  };
+
+  // ── Prescription Artifacts ──────────────────────────────────────────────────
 
   const buildPrescriptionArtifacts = (issuedAt = new Date()) => buildPrescriptionPdf({ doctor, formData, issuedAt });
 
   const registerPrescriptionInDayReport = (issuedAt) => {
     const prescriptionKey = [
-    formData.patientName,
-    formData.age,
-    formData.gender,
-    formData.bloodGroup,
-    formData.phone,
+      formData.patientName,
+      formData.age,
+      formData.gender,
+      formData.bloodGroup,
+      formData.phone,
       formData.visitType,
       formData.chiefComplaint,
       formData.diagnosis,
@@ -162,10 +244,16 @@ const NewPatient = () => {
     const { doc, filename } = buildPrescriptionPdf({ doctor, formData, issuedAt });
     savePdf(doc, filename);
     registerPrescriptionInDayReport(issuedAt);
+    // Save to MongoDB
+    await saveToDatabase();
     toast.success('Prescription PDF downloaded');
     setFormData(initialFormState);
     sessionStorage.removeItem('scribeDraftCase');
     lastRegisteredKeyRef.current = '';
+    setSearchStatus(SEARCH_STATUS.IDLE);
+    setFoundPatient(null);
+    setSearchName('');
+    setSearchPhone('');
   };
 
   const sharePrescription = async (channel) => {
@@ -179,6 +267,16 @@ const NewPatient = () => {
     const shareSubject = `Prescription for ${formData.patientName || 'Patient'}`;
     const shareBody = `${shareText}\n\nPDF downloaded on this device.`;
 
+    const resetAll = () => {
+      setFormData(initialFormState);
+      sessionStorage.removeItem('scribeDraftCase');
+      lastRegisteredKeyRef.current = '';
+      setSearchStatus(SEARCH_STATUS.IDLE);
+      setFoundPatient(null);
+      setSearchName('');
+      setSearchPhone('');
+    };
+
     try {
       const shared = await trySharePdf({
         blob,
@@ -189,10 +287,9 @@ const NewPatient = () => {
 
       if (shared) {
         registerPrescriptionInDayReport(issuedAt);
+        await saveToDatabase();
         toast.success('Share sheet opened');
-        setFormData(initialFormState);
-        sessionStorage.removeItem('scribeDraftCase');
-        lastRegisteredKeyRef.current = '';
+        resetAll();
         return;
       }
     } catch (error) {
@@ -202,10 +299,9 @@ const NewPatient = () => {
     if (channel === 'whatsapp') {
       window.open(buildWhatsAppLink({ phone: formData.phone, message: shareBody }), '_blank', 'noopener,noreferrer');
       registerPrescriptionInDayReport(issuedAt);
+      await saveToDatabase();
       toast.success('WhatsApp message prepared');
-      setFormData(initialFormState);
-      sessionStorage.removeItem('scribeDraftCase');
-      lastRegisteredKeyRef.current = '';
+      resetAll();
       return;
     }
 
@@ -219,10 +315,9 @@ const NewPatient = () => {
       'noopener,noreferrer'
     );
     registerPrescriptionInDayReport(issuedAt);
+    await saveToDatabase();
     toast.success('Email draft prepared');
-    setFormData(initialFormState);
-    sessionStorage.removeItem('scribeDraftCase');
-    lastRegisteredKeyRef.current = '';
+    resetAll();
   };
 
   const saveToRegister = () => {
@@ -236,7 +331,7 @@ const NewPatient = () => {
       issuedAt: new Date(),
       source: 'manual',
     });
-    toast.success('Saved to today\'s list');
+    toast.success("Saved to today's list");
   };
 
   const topStats = [
@@ -245,6 +340,24 @@ const NewPatient = () => {
     { icon: Shield, label: 'Plan', value: doctor?.subscriptionPlan || 'FREE' },
     { icon: CalendarDays, label: 'Today', value: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
   ];
+
+  // ── Search status UI helpers ────────────────────────────────────────────────
+  const searchStatusConfig = {
+    [SEARCH_STATUS.FOUND]: {
+      color: 'var(--success, #16a34a)',
+      bg: '#f0fdf4',
+      border: '#bbf7d0',
+      icon: <CheckCircle2 size={16} />,
+      label: `Found: ${foundPatient?.patientName} — ${foundPatient?.totalVisits} previous visit(s)`,
+    },
+    [SEARCH_STATUS.NOT_FOUND]: {
+      color: 'var(--primary)',
+      bg: 'var(--primary-pale)',
+      border: 'var(--primary-light)',
+      icon: <UserPlus size={16} />,
+      label: 'New patient — record will be created after generating the prescription',
+    },
+  };
 
   return (
     <div className="dashboard-page new-patient-page">
@@ -258,8 +371,8 @@ const NewPatient = () => {
           <div className="dashboard-panel-kicker">New Prescription</div>
           <h2 className="new-patient-title">Create a fresh prescription for the next patient</h2>
           <p className="new-patient-subtitle">
-            Temporary patient record used to generate the prescription PDF and optionally share it by WhatsApp or email.
-            Patient details are stored only on this device.
+            Search an existing patient to auto-fill their information, or fill in the form for a new patient.
+            All records are saved to the database for report generation.
           </p>
           <div className="new-patient-actions">
             <button onClick={saveToRegister} className="btn btn-ghost btn-sm">
@@ -293,6 +406,106 @@ const NewPatient = () => {
             </div>
           ))}
         </div>
+      </motion.section>
+
+      {/* ── Patient Search Bar ──────────────────────────────────────────────── */}
+      <motion.section
+        className="card"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        style={{ padding: '20px 24px' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <Search size={18} color="var(--primary)" />
+          <div>
+            <div className="dashboard-panel-kicker" style={{ marginBottom: 0 }}>Patient Lookup</div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>Search existing patient to auto-fill</h3>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ flex: '1 1 220px', marginBottom: 0 }}>
+            <label className="form-label">Patient Name *</label>
+            <input
+              type="text"
+              value={searchName}
+              onChange={(e) => { setSearchName(e.target.value); setSearchStatus(SEARCH_STATUS.IDLE); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchPatient()}
+              placeholder="Enter patient full name"
+              className="form-input"
+            />
+          </div>
+          <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
+            <label className="form-label">Mobile Number *</label>
+            <input
+              type="text"
+              value={searchPhone}
+              onChange={(e) => { setSearchPhone(e.target.value); setSearchStatus(SEARCH_STATUS.IDLE); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchPatient()}
+              placeholder="Enter mobile number"
+              className="form-input"
+            />
+          </div>
+          <div style={{ display: 'flex', gap: 8, paddingBottom: '1px' }}>
+            <button
+              onClick={handleSearchPatient}
+              className="btn btn-primary btn-sm"
+              disabled={searchStatus === SEARCH_STATUS.SEARCHING}
+              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              {searchStatus === SEARCH_STATUS.SEARCHING
+                ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Searching...</>
+                : <><Search size={14} /> Search Patient</>}
+            </button>
+            {searchStatus === SEARCH_STATUS.FOUND && (
+              <button onClick={handleAutoFill} className="btn btn-ghost btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#16a34a', borderColor: '#bbf7d0', background: '#f0fdf4' }}>
+                <UserCheck size={14} /> Auto-fill Form
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Search result indicator */}
+        <AnimatePresence>
+          {(searchStatus === SEARCH_STATUS.FOUND || searchStatus === SEARCH_STATUS.NOT_FOUND) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              style={{ marginTop: 12 }}
+            >
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 14px',
+                borderRadius: 'var(--radius)',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                background: searchStatusConfig[searchStatus]?.bg,
+                border: `1.5px solid ${searchStatusConfig[searchStatus]?.border}`,
+                color: searchStatusConfig[searchStatus]?.color,
+              }}>
+                {searchStatusConfig[searchStatus]?.icon}
+                <span>{searchStatusConfig[searchStatus]?.label}</span>
+              </div>
+
+              {searchStatus === SEARCH_STATUS.FOUND && foundPatient?.prescriptions?.length > 0 && (
+                <div style={{ marginTop: 8, padding: '10px 14px', background: 'var(--bg)', borderRadius: 'var(--radius)', fontSize: '0.82rem', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+                  <strong>Last visit:</strong>{' '}
+                  {new Date(foundPatient.prescriptions.at(-1)?.visitDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  {foundPatient.prescriptions.at(-1)?.chiefComplaint && (
+                    <> &nbsp;·&nbsp; <strong>Chief complaint:</strong> {foundPatient.prescriptions.at(-1).chiefComplaint}</>
+                  )}
+                  {foundPatient.prescriptions.at(-1)?.remedies?.length > 0 && (
+                    <> &nbsp;·&nbsp; <strong>Last remedy:</strong> {foundPatient.prescriptions.at(-1).remedies[0].remedyName}</>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.section>
 
       <div className="new-patient-grid">
@@ -473,7 +686,6 @@ const NewPatient = () => {
           </div>
         </section>
       </div>
-
     </div>
   );
 };

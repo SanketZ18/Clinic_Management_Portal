@@ -256,10 +256,7 @@ const DashboardHome = () => {
                 {title}
               </Link>
             ))}
-            <Link to="/doctor/research" className="btn btn-ghost btn-sm dashboard-home-action">
-              <Sparkles size={14} />
-              Research
-            </Link>
+
           </div>
 
           <div className="dashboard-home-identity">

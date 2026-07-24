@@ -59,7 +59,7 @@ public class AuthService {
                 .licenseNumber(request.getLicenseNumber())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .role("Doctor")
-                .isActive(true)
+                .isActive(false)
                 .subscriptionPlan("FREE")
                 .build();
 
@@ -73,7 +73,10 @@ public class AuthService {
                 .orElseThrow(() -> new AuthException("Invalid email or password"));
 
         if (!DoctorAccessPolicy.isAccessAllowed(doctor)) {
-            throw new AuthException("Your access has been declined by super admin. Please contact support.");
+            if (doctor.getSubscriptionExpiry() != null && LocalDateTime.now().isAfter(doctor.getSubscriptionExpiry())) {
+                throw new AuthException("Your 365-day subscription has expired. Please renew your plan to continue access.");
+            }
+            throw new AuthException("Access pending. Please contact the management team or Super Admin to grant access.");
         }
 
         try {
@@ -86,7 +89,10 @@ public class AuthService {
         } catch (BadCredentialsException e) {
             throw new AuthException("Invalid email or password");
         } catch (LockedException | DisabledException e) {
-            throw new AuthException("Your access has been declined by super admin. Please contact support.");
+            if (doctor.getSubscriptionExpiry() != null && LocalDateTime.now().isAfter(doctor.getSubscriptionExpiry())) {
+                throw new AuthException("Your 365-day subscription has expired. Please renew your plan to continue access.");
+            }
+            throw new AuthException("Access pending. Please contact the management team or Super Admin to grant access.");
         }
 
         // Update last login

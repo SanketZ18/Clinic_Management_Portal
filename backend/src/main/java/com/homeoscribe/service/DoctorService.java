@@ -7,6 +7,7 @@ import com.homeoscribe.exception.AuthException;
 import com.homeoscribe.exception.DuplicateResourceException;
 import com.homeoscribe.exception.ValidationException;
 import com.homeoscribe.model.Doctor;
+import com.homeoscribe.repository.DoctorPatientMapRepository;
 import com.homeoscribe.repository.DoctorRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import java.util.List;
 public class DoctorService {
 
     private final DoctorRepository doctorRepository;
+    private final DoctorPatientMapRepository doctorPatientMapRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
 
@@ -127,6 +129,10 @@ public class DoctorService {
         }
 
         target.setActive(isActive);
+        if (isActive) {
+            target.setSubscriptionExpiry(java.time.LocalDateTime.now().plusDays(365));
+            target.setSubscriptionPlan("PAID");
+        }
         target = doctorRepository.save(target);
         log.info("Doctor access updated: {} -> {}", target.getEmail(), isActive);
         return authService.mapToProfileResponse(target);
@@ -152,6 +158,19 @@ public class DoctorService {
         }
 
         String deletedEmail = target.getEmail();
+        String targetDoctorId = target.getDoctorId();
+
+        // 1. Remove doctor-patient mapping relationship entry completely
+        if (targetDoctorId != null && !targetDoctorId.isBlank()) {
+            try {
+                doctorPatientMapRepository.deleteByDoctorId(targetDoctorId);
+                log.info("Deleted doctor-patient relationship record for doctorId: {}", targetDoctorId);
+            } catch (Exception e) {
+                log.warn("Failed to delete doctor-patient map for doctorId {}: {}", targetDoctorId, e.getMessage());
+            }
+        }
+
+        // 2. Delete Doctor account document
         doctorRepository.delete(target);
         log.info("Doctor deleted by {}: {}", adminEmail, deletedEmail);
         return deletedEmail;

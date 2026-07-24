@@ -19,8 +19,13 @@ import {
   Activity,
   ShieldCheck,
   ChevronRight,
+  AlertCircle,
+  Lightbulb,
+  HelpCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getSubscriptionInfo } from '../../utils/subscription';
+
 
 const quickActions = [
   {
@@ -43,11 +48,24 @@ const quickActions = [
   },
 ];
 
-const searchTips = [
-  'miasm differential diagnosis',
-  'homeopathic repertory for fever',
-  'Lycopodium keynote symptoms',
-  'acute cough remedy selection',
+const promptCategories = [
+  {
+    category: '🩺 Symptom & Case Analysis',
+    prompts: [
+      'Homeopathic remedy for acute throbbing headache with heat aggravation',
+      'Differential diagnosis for chronic eczema with night itching',
+      'Childhood dry barking cough remedy comparison: Spongia vs Hepar sulph',
+    ],
+  },
+  {
+    category: '🌿 Remedy Keynotes & Materia Medica',
+    prompts: [
+      'Lycopodium clavatum keynote symptoms, modalities, and mind rubrics',
+      'Pulsatilla nigricans: thirstlessness, changeability, and weeping disposition',
+      'Arsenicum album vs Nux vomica in acute digestive keynotes',
+    ],
+  },
+
 ];
 
 const workflowSteps = [
@@ -132,7 +150,9 @@ const DashboardHome = () => {
     toast.success('Search text inserted');
   };
 
-const stats = [
+  const subInfo = getSubscriptionInfo(doctor);
+
+  const stats = [
     {
       icon: Users,
       label: "Today's focus",
@@ -150,13 +170,67 @@ const stats = [
     },
     {
       icon: ShieldCheck,
-      label: 'Plan',
-      value: doctor?.subscriptionPlan || 'FREE',
+      label: 'Plan Access',
+      value: isSuperAdmin
+        ? 'Unlimited (Super Admin)'
+        : `${subInfo.daysRemaining} days remaining`,
+      isWarning: !isSuperAdmin && subInfo.isWarning,
+      isExpired: !isSuperAdmin && subInfo.isExpired,
     },
   ];
 
   return (
     <div className="dashboard-page dashboard-home">
+      {/* Warning banner for <= 5 days remaining */}
+      {!isSuperAdmin && subInfo.isWarning && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            background: '#fef2f2',
+            border: '1px solid #fca5a5',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'space-between',
+            gap: '12px',
+            color: '#991b1b',
+            boxShadow: '0 2px 8px rgba(239,68,68,0.1)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <AlertCircle size={20} color="#dc2626" />
+            <div>
+              <strong style={{ fontSize: '0.92rem' }}>
+                {subInfo.isExpired
+                  ? 'Your 365-day access plan has expired!'
+                  : `Subscription Expiry Warning: Only ${subInfo.daysRemaining} ${subInfo.daysRemaining === 1 ? 'day' : 'days'} remaining!`}
+              </strong>
+              <p style={{ fontSize: '0.8rem', color: '#b91c1c', margin: 0, marginTop: 2 }}>
+                Please renew your subscription to avoid interruption in your clinic management services.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/payment-qr?mode=renew"
+            className="btn btn-sm"
+            style={{
+              background: '#dc2626',
+              color: 'white',
+              whiteSpace: 'nowrap',
+              fontWeight: 700,
+              fontSize: '0.8rem',
+              borderRadius: '8px',
+              padding: '8px 16px',
+            }}
+          >
+            Renew Plan Now
+          </Link>
+        </motion.div>
+      )}
+
       <motion.section
         className="dashboard-home-hero card"
         initial={{ opacity: 0, y: 18 }}
@@ -198,14 +272,22 @@ const stats = [
         </div>
 
         <div className="dashboard-home-hero-aside">
-          {stats.map(({ icon: Icon, label, value }) => (
+          {stats.map(({ icon: Icon, label, value, isWarning, isExpired }) => (
             <div key={label} className="dashboard-home-stat">
               <div className="dashboard-home-stat-icon">
-                <Icon size={16} />
+                <Icon size={16} color={isWarning || isExpired ? '#ef4444' : undefined} />
               </div>
               <div>
                 <div className="dashboard-home-stat-label">{label}</div>
-                <div className="dashboard-home-stat-value">{value}</div>
+                <div
+                  className="dashboard-home-stat-value"
+                  style={{
+                    color: isWarning || isExpired ? '#ef4444' : undefined,
+                    fontWeight: isWarning || isExpired ? 700 : undefined,
+                  }}
+                >
+                  {value}
+                </div>
               </div>
             </div>
           ))}
@@ -283,11 +365,47 @@ const stats = [
             </button>
           </div>
 
-          <div className="dashboard-search-tips">
-            {searchTips.map((tip) => (
-              <button key={tip} type="button" className="dashboard-search-tip" onClick={() => fillTip(tip)}>
-                {tip}
-              </button>
+          {/* Helpful Doctor Prompting Guide Box */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(239, 246, 255, 0.95), rgba(240, 253, 250, 0.95))',
+            border: '1px solid #bfdbfe',
+            borderRadius: '12px',
+            padding: '14px 16px',
+            marginTop: '16px',
+            marginBottom: '16px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#1e40af', fontSize: '0.88rem' }}>
+              <Lightbulb size={17} color="#2563eb" />
+              Doctor Prompting Guide & Search Helper
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#334155', margin: '6px 0 0 0', lineHeight: 1.5 }}>
+              Structure clinical queries with: <strong>Symptom + Location + Modality (aggravation/amelioration) + Mind State</strong>.
+              Use <strong>ChatGPT</strong> mode for differential remedy comparisons & case analysis. Use <strong>Google</strong> mode for materia medica papers & repertory rubrics. Click any template below to auto-fill:
+            </p>
+          </div>
+
+          {/* Categorized Clinical Prompt Templates */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {promptCategories.map(({ category, prompts }) => (
+              <div key={category}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  {category}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {prompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      className="dashboard-search-tip"
+                      onClick={() => fillTip(prompt)}
+                      title="Click to insert prompt into search bar"
+                      style={{ textAlign: 'left', cursor: 'pointer', lineHeight: 1.4 }}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </motion.section>

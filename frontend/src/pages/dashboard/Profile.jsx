@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
 import { 
@@ -7,6 +8,8 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { getSubscriptionInfo } from '../../utils/subscription';
+
 
 const Profile = () => {
   const { doctor, updateDoctor, refreshProfile } = useAuth();
@@ -143,28 +146,49 @@ const Profile = () => {
         </div>
 
         {/* Subscription Info Widget */}
-        <div className="card" style={{ padding: 20 }}>
-          <h4 style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-            <ShieldAlert size={16} color="var(--primary)" /> Subscription Status
-          </h4>
-          <p style={{ fontSize: '0.85rem', marginBottom: 12 }}>
-            You are currently on the free launch plan. Complete access is granted.
-          </p>
-          <div style={{ padding: 12, background: 'var(--primary-pale)', borderRadius: 8, border: '1px solid var(--border)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 'bold' }}>
-              <span>Plan Type:</span>
-              <span className="text-primary">{doctor?.subscriptionPlan || 'FREE'}</span>
+        {(() => {
+          const isSuperAdmin = String(doctor?.role || '').toLowerCase().includes('super admin');
+          const subInfo = getSubscriptionInfo(doctor);
+          return (
+            <div className="card" style={{ padding: 20 }}>
+              <h4 style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
+                <ShieldAlert size={16} color={isSuperAdmin ? 'var(--primary)' : subInfo.isWarning ? '#ef4444' : 'var(--primary)'} /> Subscription Status
+              </h4>
+              <p style={{ fontSize: '0.85rem', marginBottom: 12 }}>
+                {isSuperAdmin
+                  ? 'Super Admin account has permanent lifetime platform access.'
+                  : '1-Year Plan validity from registration date.'}
+              </p>
+              <div style={{ padding: 12, background: isSuperAdmin ? 'var(--primary-pale)' : subInfo.isWarning ? '#fef2f2' : 'var(--primary-pale)', borderRadius: 8, border: subInfo.isWarning && !isSuperAdmin ? '1px solid #fca5a5' : '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', fontWeight: 'bold' }}>
+                  <span>Plan Duration:</span>
+                  <span className="text-primary">{isSuperAdmin ? 'Lifetime Access (Super Admin)' : '365 Days Plan (₹500)'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginTop: 4 }}>
+                  <span>Payment Status:</span>
+                  <span style={{ fontWeight: 'bold', color: 'var(--success, #16a34a)' }}>{isSuperAdmin ? 'N/A (Super Admin)' : '₹500 (PAID)'}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginTop: 4 }}>
+                  <span>Access Status:</span>
+                  <span style={{ fontWeight: 'bold', color: '#16a34a' }}>
+                    {isSuperAdmin ? 'Lifetime Access Granted' : subInfo.isExpired ? 'EXPIRED' : `${subInfo.daysRemaining} Days Remaining`}
+                  </span>
+                </div>
+              </div>
+              {!isSuperAdmin && (
+                <div style={{ marginTop: 12, display: 'flex', justifyContent: 'flex-end' }}>
+                  <Link
+                    to="/payment-qr?mode=renew"
+                    className="btn btn-sm btn-ghost"
+                    style={{ fontSize: '0.75rem', color: '#ef4444', border: '1px solid #fca5a5' }}
+                  >
+                    Renew Plan (₹500)
+                  </Link>
+                </div>
+              )}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginTop: 4 }}>
-              <span>Monthly Charge:</span>
-              <span style={{ textDecoration: 'line-through' }}>₹500</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginTop: 2 }}>
-              <span>Discount applied:</span>
-              <span className="text-primary">100% OFF</span>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Right side form cards */}

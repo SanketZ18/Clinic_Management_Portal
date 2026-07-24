@@ -12,4 +12,6 @@ public interface DoctorPatientMapRepository extends MongoRepository<DoctorPatien
     Optional<DoctorPatientMap> findByDoctorId(String doctorId);
 
     boolean existsByDoctorId(String doctorId);
+
+    void deleteByDoctorId(String doctorId);
 }

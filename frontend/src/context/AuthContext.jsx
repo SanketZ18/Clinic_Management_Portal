@@ -36,7 +36,7 @@ export const AuthProvider = ({ children }) => {
     const response = await api.post('/auth/register', data);
     const { accessToken, doctor: doctorData } = response.data.data || {};
     const nextDoctor = normalizeDoctor(doctorData);
-    if (accessToken) {
+    if (nextDoctor?.isActive && accessToken) {
       localStorage.setItem('accessToken', accessToken);
       localStorage.setItem('doctor', JSON.stringify(nextDoctor));
       setDoctor(nextDoctor);

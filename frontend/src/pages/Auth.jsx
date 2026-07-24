@@ -116,15 +116,10 @@ const Auth = () => {
     setLoading(true);
     try {
       const doctorData = await register(registerForm);
-      if (doctorData?.isActive) {
-        toast.success('Registration successful! Welcome aboard.');
-        navigate(getDashboardPath(doctorData));
-        return;
-      }
-
-      setLoginForm({ email: registerForm.email, password: '' });
-      toast.success('Registration submitted. Wait for super admin approval before login.');
-      navigate('/auth?mode=login');
+      toast.success('Registration successful! Please scan QR code & complete ₹500 payment.');
+      navigate(
+        `/payment?name=${encodeURIComponent(registerForm.fullName)}&email=${encodeURIComponent(registerForm.email)}&phone=${encodeURIComponent(registerForm.phone)}`
+      );
     } catch (err) {
       if (err.response?.data?.data) setValidationErrors(err.response.data.data);
       toast.error(err.response?.data?.message || 'Registration failed. Try again.');
@@ -385,22 +380,45 @@ const Auth = () => {
                     {loading ? 'Logging in...' : (<><ArrowRight size={16} /> Login</>)}
                   </button>
 
-                  <p style={{ fontSize: '0.82rem', color: '#64748b', textAlign: 'center', marginTop: 4 }}>
-                    Don't have an account?{' '}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'center', marginTop: 4 }}>
+                    <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>
+                      Don't have an account?{' '}
+                      <button
+                        type="button"
+                        onClick={() => navigate('/auth?mode=register')}
+                        style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', padding: 0 }}
+                      >
+                        Register as Doctor
+                      </button>
+                    </p>
+
                     <button
                       type="button"
-                      onClick={() => navigate('/auth?mode=register')}
-                      style={{ background: 'none', border: 'none', color: '#2563eb', fontWeight: 700, cursor: 'pointer', fontSize: '0.82rem', padding: 0 }}
+                      onClick={() => navigate(`/payment?mode=renew&email=${encodeURIComponent(loginForm.email)}`)}
+                      style={{
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '10px',
+                        color: '#1d4ed8',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: '0.78rem',
+                        padding: '6px 14px',
+                        marginTop: 4,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
                     >
-                      Register as Doctor
+                      <Sparkles size={12} color="#2563eb" /> Renew Subscription Plan (₹500)
                     </button>
-                  </p>
+                  </div>
                 </form>
               ) : (
                 <form onSubmit={handleRegisterSubmit} style={registerFormLayout}>
                   <div style={{ ...fullWidthField, background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '1px solid #bfdbfe', borderRadius: '14px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Sparkles size={14} color="#2563eb" />
-                    <span style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600 }}>Launch offer: registration is 100% free right now.</span>
+                    <span style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600 }}>Get complete clinic management access for an initial fee of just ₹500.</span>
                     <button
                       type="button"
                       onClick={() => setShowPaidInfo(true)}
@@ -619,18 +637,19 @@ const Auth = () => {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#2563eb', marginBottom: '1rem' }}>
                 <Sparkles size={22} />
-                <h3 style={{ margin: 0, color: '#0f172a' }}>Future Subscription Plan</h3>
+                <h3 style={{ margin: 0, color: '#0f172a' }}>Platform Access & Fee</h3>
               </div>
               <p style={{ fontSize: '0.92rem', color: '#64748b', marginBottom: '1rem', lineHeight: 1.7 }}>
-                The platform is currently 100% free. In the future, a nominal fee may apply to support servers and continuous improvements.
+                Start and manage your online clinic with our full-featured portal for an initial access fee of just ₹500.
               </p>
               <div style={{ background: '#eff6ff', borderLeft: '4px solid #2563eb', borderRadius: '0 14px 14px 0', padding: 16, marginBottom: '1.25rem' }}>
-                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#1d4ed8', marginBottom: 8 }}>Rs. 500 / year - Full Access</div>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#1d4ed8', marginBottom: 8 }}>Rs. 500 - Initial Setup & Full Access</div>
                 <ul style={{ fontSize: '0.86rem', color: '#64748b', paddingLeft: 16, listStyle: 'disc', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <li>Unlimited PDF prescriptions</li>
-                  <li>Daily patient session logs</li>
-                  <li>One-click day reports</li>
-                  <li>Clinical research access</li>
+                  <li>Daily patient session logs & records</li>
+                  <li>One-click day reports & summaries</li>
+                  <li>Clinical research database access</li>
+                  <li>Super Admin verification & support</li>
                 </ul>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

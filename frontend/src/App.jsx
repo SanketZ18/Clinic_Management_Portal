@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import About from './pages/About';
 import Contact from './pages/Contact';
 import Auth from './pages/Auth';
+import PaymentQR from './pages/PaymentQR';
 
 // Dashboard pages
 import DashboardLayout from './components/DashboardLayout';
@@ -38,6 +39,8 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/payment" element={<PaymentQR />} />
+          <Route path="/payment-qr" element={<PaymentQR />} />
 
           {/* Protected Dashboard Routes */}
           <Route path="/doctor" element={

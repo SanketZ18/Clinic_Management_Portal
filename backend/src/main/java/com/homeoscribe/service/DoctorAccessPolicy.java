@@ -22,6 +22,18 @@ public final class DoctorAccessPolicy {
     }
 
     public static boolean isAccessAllowed(Doctor doctor) {
-        return doctor != null && (isSuperAdmin(doctor) || doctor.isActive());
+        if (doctor == null) {
+            return false;
+        }
+        if (isSuperAdmin(doctor)) {
+            return true;
+        }
+        if (!doctor.isActive()) {
+            return false;
+        }
+        if (doctor.getSubscriptionExpiry() != null && java.time.LocalDateTime.now().isAfter(doctor.getSubscriptionExpiry())) {
+            return false;
+        }
+        return true;
     }
 }

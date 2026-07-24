@@ -14,6 +14,7 @@ import {
   Mail,
   Phone,
   Trash2,
+  Smartphone,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -84,6 +85,19 @@ const ManageDoctors = () => {
     return { total, active, inactive, superAdmins };
   }, [doctors]);
 
+  const sendWhatsAppNotification = (item) => {
+    if (!item?.phone) {
+      toast.error('Doctor phone number not available');
+      return;
+    }
+    const cleanPhone = item.phone.replace(/[^0-9]/g, '');
+    const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const msg = encodeURIComponent(
+      `Hello Dr. ${item.fullName || ''},\n\nYour account access for Dr. Salunkhe's Digital Clinic Platform has been granted by the Super Admin!\n\nYou can now log in to your dashboard.\n\nThank you!`
+    );
+    window.open(`https://wa.me/${formattedPhone}?text=${msg}`, '_blank');
+  };
+
   const updateAccess = async (item, nextIsActive) => {
     if (!item?.doctorId) return;
     if (item.doctorId === doctor?.doctorId) {
@@ -105,7 +119,12 @@ const ManageDoctors = () => {
       setDoctors((current) =>
         current.map((entry) => (entry.doctorId === updatedDoctor.doctorId ? updatedDoctor : entry))
       );
-      toast.success(isDoctorAllowed(updatedDoctor) ? 'Doctor access allowed' : 'Doctor access declined');
+      if (isDoctorAllowed(updatedDoctor)) {
+        toast.success('Doctor access allowed! Opening WhatsApp to notify doctor...');
+        sendWhatsAppNotification(updatedDoctor);
+      } else {
+        toast.success('Doctor access declined');
+      }
     } catch (error) {
       console.error(error);
       toast.error(error.response?.data?.message || 'Could not update access');
@@ -295,6 +314,17 @@ const ManageDoctors = () => {
                             ) : (
                               <UserCheck size={15} />
                             )}
+                          </button>
+
+                          {/* WhatsApp Notify */}
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => sendWhatsAppNotification(item)}
+                            title="Send WhatsApp message to doctor"
+                            style={{ padding: '6px 8px', minWidth: 'unset', color: '#16a34a' }}
+                          >
+                            <Smartphone size={15} />
                           </button>
 
                           {/* Decline */}

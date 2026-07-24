@@ -48,6 +48,7 @@ const Auth = () => {
     confirmPassword: '',
   });
   const [validationErrors, setValidationErrors] = useState({});
+  const [touchedFields, setTouchedFields] = useState({});
 
   const getDashboardPath = (doctorData) =>
     String(doctorData?.role || 'Doctor')
@@ -65,30 +66,104 @@ const Auth = () => {
   useEffect(() => {
     setIsLogin(searchParams.get('mode') !== 'register');
     setValidationErrors({});
+    setTouchedFields({});
   }, [searchParams]);
 
   const handleLoginChange = (e) => setLoginForm({ ...loginForm, [e.target.name]: e.target.value });
-  const handleRegisterChange = (e) => setRegisterForm({ ...registerForm, [e.target.name]: e.target.value });
+
+  const validateField = (name, value, formState = registerForm) => {
+    let error = '';
+    const val = value ? String(value).trim() : '';
+    switch (name) {
+      case 'fullName':
+        if (!val) error = 'Full name is required';
+        else if (val.length < 2) error = 'Full name must be at least 2 characters';
+        else if (val.length > 100) error = 'Full name cannot exceed 100 characters';
+        break;
+      case 'qualification':
+        if (!val) error = 'Qualification is required';
+        else if (val.length < 2) error = 'Qualification must be at least 2 characters (e.g. BHMS, MD)';
+        break;
+      case 'phone':
+        if (!val) error = 'Phone number is required';
+        else if (!/^[+]?[0-9]{10,15}$/.test(val)) error = 'Phone number must be 10-15 digits';
+        break;
+      case 'clinicName':
+        if (!val) error = 'Clinic name is required';
+        else if (val.length < 3) error = 'Clinic name must be at least 3 characters';
+        break;
+      case 'email':
+        if (!val) error = 'Email address is required';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) error = 'Please enter a valid email address';
+        break;
+      case 'licenseNumber':
+        if (!val) error = 'Medical license number is required';
+        else if (val.length < 3) error = 'License number must be at least 3 characters';
+        break;
+      case 'clinicAddress':
+        if (!val) error = 'Clinic address is required';
+        else if (val.length < 5) error = 'Clinic address must be at least 5 characters';
+        break;
+      case 'password':
+        if (!value) error = 'Password is required';
+        else if (value.length < 8) error = 'Password must be at least 8 characters';
+        else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(value)) {
+          error = 'Must contain uppercase, lowercase letter & number';
+        }
+        break;
+      case 'confirmPassword':
+        if (!value) error = 'Please confirm your password';
+        else if (value !== formState.password) error = 'Passwords do not match';
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
+
+  const handleRegisterChange = (e) => {
+    const { name, value } = e.target;
+    const updatedForm = { ...registerForm, [name]: value };
+    setRegisterForm(updatedForm);
+
+    if (touchedFields[name] || validationErrors[name]) {
+      const err = validateField(name, value, updatedForm);
+      setValidationErrors((prev) => ({ ...prev, [name]: err }));
+
+      if (name === 'password' && (touchedFields.confirmPassword || validationErrors.confirmPassword)) {
+        const confErr = validateField('confirmPassword', updatedForm.confirmPassword, updatedForm);
+        setValidationErrors((prev) => ({ ...prev, confirmPassword: confErr }));
+      }
+    }
+  };
+
+  const handleRegisterBlur = (e) => {
+    const { name, value } = e.target;
+    setTouchedFields((prev) => ({ ...prev, [name]: true }));
+    const err = validateField(name, value, registerForm);
+    setValidationErrors((prev) => ({ ...prev, [name]: err }));
+  };
 
   const validateRegister = () => {
     const errors = {};
-    if (!registerForm.fullName) errors.fullName = 'Full name required';
-    if (!registerForm.qualification) errors.qualification = 'Qualification required';
-    if (!registerForm.clinicName) errors.clinicName = 'Clinic name required';
-    if (!registerForm.clinicAddress) errors.clinicAddress = 'Address required';
-    if (!registerForm.phone) errors.phone = 'Phone required';
-    else if (!/^[+]?[0-9]{10,15}$/.test(registerForm.phone)) errors.phone = 'Invalid (10-15 digits)';
-    if (!registerForm.email) errors.email = 'Email required';
-    else if (!/\S+@\S+\.\S+/.test(registerForm.email)) errors.email = 'Invalid email';
-    if (!registerForm.licenseNumber) errors.licenseNumber = 'License required';
-    if (!registerForm.password) errors.password = 'Password required';
-    else if (registerForm.password.length < 8) errors.password = 'Min 8 characters';
-    else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(registerForm.password)) {
-      errors.password = 'Need uppercase, lowercase & digit';
-    }
-    if (registerForm.password !== registerForm.confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match';
-    }
+    const fields = [
+      'fullName',
+      'qualification',
+      'phone',
+      'clinicName',
+      'email',
+      'licenseNumber',
+      'clinicAddress',
+      'password',
+      'confirmPassword',
+    ];
+    const allTouched = {};
+    fields.forEach((field) => {
+      allTouched[field] = true;
+      const err = validateField(field, registerForm[field], registerForm);
+      if (err) errors[field] = err;
+    });
+    setTouchedFields(allTouched);
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -415,7 +490,7 @@ const Auth = () => {
                   </div>
                 </form>
               ) : (
-                <form onSubmit={handleRegisterSubmit} style={registerFormLayout}>
+                <form onSubmit={handleRegisterSubmit} noValidate style={registerFormLayout}>
                   <div style={{ ...fullWidthField, background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)', border: '1px solid #bfdbfe', borderRadius: '14px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Sparkles size={14} color="#2563eb" />
                     <span style={{ fontSize: '0.8rem', color: '#1d4ed8', fontWeight: 600 }}>Get complete clinic management access for an initial fee of just ₹500.</span>
@@ -436,9 +511,9 @@ const Auth = () => {
                         name="fullName"
                         value={registerForm.fullName}
                         onChange={handleRegisterChange}
+                        onBlur={handleRegisterBlur}
                         style={inputStyle(validationErrors.fullName)}
-                        placeholder="Enter the full name"
-                        required
+                        placeholder="e.g. Dr. Ramesh Patil"
                       />
                       {validationErrors.fullName && <div style={errorStyle}><AlertCircle size={10} />{validationErrors.fullName}</div>}
                     </div>
@@ -450,9 +525,9 @@ const Auth = () => {
                         name="qualification"
                         value={registerForm.qualification}
                         onChange={handleRegisterChange}
+                        onBlur={handleRegisterBlur}
                         style={inputStyle(validationErrors.qualification)}
-                        placeholder="Enter the qualification"
-                        required
+                        placeholder="e.g. B.H.M.S., M.D."
                       />
                       {validationErrors.qualification && <div style={errorStyle}><AlertCircle size={10} />{validationErrors.qualification}</div>}
                     </div>
@@ -464,9 +539,9 @@ const Auth = () => {
                         name="phone"
                         value={registerForm.phone}
                         onChange={handleRegisterChange}
+                        onBlur={handleRegisterBlur}
                         style={inputStyle(validationErrors.phone)}
-                        placeholder="Enter the phone number"
-                        required
+                        placeholder="e.g. 9876543210"
                       />
                       {validationErrors.phone && <div style={errorStyle}><AlertCircle size={10} />{validationErrors.phone}</div>}
                     </div>
@@ -480,9 +555,9 @@ const Auth = () => {
                         name="clinicName"
                         value={registerForm.clinicName}
                         onChange={handleRegisterChange}
+                        onBlur={handleRegisterBlur}
                         style={inputStyle(validationErrors.clinicName)}
-                        placeholder="Enter the clinic name"
-                        required
+                        placeholder="e.g. Healing Touch Clinic"
                       />
                       {validationErrors.clinicName && <div style={errorStyle}><AlertCircle size={10} />{validationErrors.clinicName}</div>}
                     </div>
@@ -494,9 +569,9 @@ const Auth = () => {
                         name="email"
                         value={registerForm.email}
                         onChange={handleRegisterChange}
+                        onBlur={handleRegisterBlur}
                         style={inputStyle(validationErrors.email)}
-                        placeholder="Enter the email address"
-                        required
+                        placeholder="doctor@example.com"
                       />
                       {validationErrors.email && <div style={errorStyle}><AlertCircle size={10} />{validationErrors.email}</div>}
                     </div>
@@ -508,9 +583,9 @@ const Auth = () => {
                         name="licenseNumber"
                         value={registerForm.licenseNumber}
                         onChange={handleRegisterChange}
+                        onBlur={handleRegisterBlur}
                         style={inputStyle(validationErrors.licenseNumber)}
-                        placeholder="Enter the license number"
-                        required
+                        placeholder="e.g. REG-123456"
                       />
                       {validationErrors.licenseNumber && <div style={errorStyle}><AlertCircle size={10} />{validationErrors.licenseNumber}</div>}
                     </div>
@@ -523,9 +598,9 @@ const Auth = () => {
                       name="clinicAddress"
                       value={registerForm.clinicAddress}
                       onChange={handleRegisterChange}
+                      onBlur={handleRegisterBlur}
                       style={inputStyle(validationErrors.clinicAddress)}
-                      placeholder="Enter the clinic address"
-                      required
+                      placeholder="Enter full clinic street address, city, pincode"
                     />
                     {validationErrors.clinicAddress && <div style={errorStyle}><AlertCircle size={10} />{validationErrors.clinicAddress}</div>}
                   </div>
@@ -539,9 +614,9 @@ const Auth = () => {
                           name="password"
                           value={registerForm.password}
                           onChange={handleRegisterChange}
+                          onBlur={handleRegisterBlur}
                           style={{ ...inputStyle(validationErrors.password), paddingRight: 36 }}
-                          placeholder="Create a password"
-                          required
+                          placeholder="Min 8 chars (A-Z, a-z, 0-9)"
                         />
                         <button
                           type="button"
@@ -562,9 +637,9 @@ const Auth = () => {
                           name="confirmPassword"
                           value={registerForm.confirmPassword}
                           onChange={handleRegisterChange}
+                          onBlur={handleRegisterBlur}
                           style={{ ...inputStyle(validationErrors.confirmPassword), paddingRight: 36 }}
-                          placeholder="Re-enter the password"
-                          required
+                          placeholder="Re-enter password"
                         />
                         <button
                           type="button"

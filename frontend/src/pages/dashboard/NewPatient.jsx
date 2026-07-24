@@ -28,6 +28,7 @@ import {
   trySharePdf,
 } from '../../utils/clinicDocuments';
 import { searchPatient, savePatientPrescription } from '../../services/patientApi';
+import { getSubscriptionInfo } from '../../utils/subscription';
 
 const initialFormState = {
   patientName: '',
@@ -334,10 +335,23 @@ const NewPatient = () => {
     toast.success("Saved to today's list");
   };
 
+  const isSuperAdmin = String(doctor?.role || '').toLowerCase().includes('super admin');
+  const subInfo = getSubscriptionInfo(doctor);
+
   const topStats = [
     { icon: Stethoscope, label: 'Doctor', value: doctor?.fullName || 'Doctor' },
     { icon: MapPin, label: 'Clinic', value: doctor?.clinicName || 'Clinic' },
-    { icon: Shield, label: 'Plan', value: doctor?.subscriptionPlan || 'FREE' },
+    {
+      icon: Shield,
+      label: 'Plan Access',
+      value: isSuperAdmin
+        ? 'Unlimited (Super Admin)'
+        : subInfo?.isExpired
+        ? 'Expired'
+        : `${subInfo?.daysRemaining} day's access Left`,
+      isWarning: !isSuperAdmin && subInfo?.isWarning,
+      isExpired: !isSuperAdmin && subInfo?.isExpired,
+    },
     { icon: CalendarDays, label: 'Today', value: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) },
   ];
 
@@ -394,14 +408,22 @@ const NewPatient = () => {
         </div>
 
         <div className="new-patient-hero-side">
-          {topStats.map(({ icon: Icon, label, value }) => (
+          {topStats.map(({ icon: Icon, label, value, isWarning, isExpired }) => (
             <div key={label} className="new-patient-stat">
               <div className="new-patient-stat-icon">
-                <Icon size={16} />
+                <Icon size={16} color={isWarning || isExpired ? '#ef4444' : undefined} />
               </div>
               <div>
                 <div className="new-patient-stat-label">{label}</div>
-                <div className="new-patient-stat-value">{value}</div>
+                <div
+                  className="new-patient-stat-value"
+                  style={{
+                    color: isWarning || isExpired ? '#ef4444' : undefined,
+                    fontWeight: isWarning || isExpired ? 700 : undefined,
+                  }}
+                >
+                  {value}
+                </div>
               </div>
             </div>
           ))}

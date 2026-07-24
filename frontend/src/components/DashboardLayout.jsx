@@ -61,10 +61,10 @@ const DashboardLayout = () => {
     { to: `${basePath}/profile`, icon: User, label: 'My Profile', desc: 'Manage & update profile' },
   ];
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = () => {
+    logout();
     toast.success('Logged out successfully');
-    navigate('/');
+    navigate('/auth?mode=login', { replace: true });
   };
 
   const getPageTitle = () => {

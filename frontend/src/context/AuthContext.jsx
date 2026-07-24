@@ -19,14 +19,21 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Restore session from localStorage
-    const token = localStorage.getItem('accessToken');
-    const storedDoctor = localStorage.getItem('doctor');
+    // Purge legacy persistent localStorage tokens if present
+    try {
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('doctor');
+    } catch (_) {}
+
+    // Restore session from sessionStorage
+    const token = sessionStorage.getItem('accessToken');
+    const storedDoctor = sessionStorage.getItem('doctor');
     if (token && storedDoctor) {
       try {
         setDoctor(normalizeDoctor(JSON.parse(storedDoctor)));
       } catch (e) {
-        localStorage.removeItem('doctor');
+        sessionStorage.removeItem('doctor');
+        sessionStorage.removeItem('accessToken');
       }
     }
     setLoading(false);
@@ -37,8 +44,8 @@ export const AuthProvider = ({ children }) => {
     const { accessToken, doctor: doctorData } = response.data.data || {};
     const nextDoctor = normalizeDoctor(doctorData);
     if (nextDoctor?.isActive && accessToken) {
-      localStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('doctor', JSON.stringify(nextDoctor));
+      sessionStorage.setItem('accessToken', accessToken);
+      sessionStorage.setItem('doctor', JSON.stringify(nextDoctor));
       setDoctor(nextDoctor);
     }
     return nextDoctor;
@@ -48,28 +55,30 @@ export const AuthProvider = ({ children }) => {
     const response = await api.post('/auth/login', data);
     const { accessToken, doctor: doctorData } = response.data.data;
     const nextDoctor = normalizeDoctor(doctorData);
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('doctor', JSON.stringify(nextDoctor));
+    sessionStorage.setItem('accessToken', accessToken);
+    sessionStorage.setItem('doctor', JSON.stringify(nextDoctor));
     setDoctor(nextDoctor);
     return nextDoctor;
   }, []);
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
+    // Synchronously clear client state and storage for 0ms instant logout
     try {
-      await api.post('/auth/logout');
-    } catch (e) {
-      // Logout even if API fails
-    } finally {
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('doctor');
       localStorage.removeItem('accessToken');
       localStorage.removeItem('doctor');
-      setDoctor(null);
-    }
+    } catch (_) {}
+    setDoctor(null);
+
+    // Notify backend in background without delaying client logout
+    api.post('/auth/logout').catch(() => {});
   }, []);
 
   const updateDoctor = useCallback((updatedDoctor) => {
     const nextDoctor = normalizeDoctor(updatedDoctor);
     setDoctor(nextDoctor);
-    localStorage.setItem('doctor', JSON.stringify(nextDoctor));
+    sessionStorage.setItem('doctor', JSON.stringify(nextDoctor));
   }, []);
 
   const refreshProfile = useCallback(async () => {

@@ -1,4 +1,4 @@
-﻿import { jsPDF } from 'jspdf';
+import { jsPDF } from 'jspdf';
 
 const A4 = {
   width: 210,
@@ -48,10 +48,10 @@ export const getTodayPatientsStorageKey = (doctor) =>
   `${TODAY_PATIENTS_BASE_KEY}:${fileSafe(getDoctorScopeSeed(doctor))}`;
 
 const readStoredPatients = (storageKey) => {
-  if (typeof window === 'undefined' || !window.localStorage) return [];
+  if (typeof window === 'undefined' || !window.sessionStorage) return [];
 
   try {
-    const stored = window.localStorage.getItem(storageKey) || '[]';
+    const stored = window.sessionStorage.getItem(storageKey) || window.localStorage?.getItem(storageKey) || '[]';
     const parsed = JSON.parse(stored);
     return Array.isArray(parsed) ? parsed : [];
   } catch (error) {
@@ -61,8 +61,10 @@ const readStoredPatients = (storageKey) => {
 };
 
 const writeStoredPatients = (storageKey, patients) => {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  window.localStorage.setItem(storageKey, JSON.stringify(patients));
+  if (typeof window === 'undefined' || !window.sessionStorage) return;
+  try {
+    window.sessionStorage.setItem(storageKey, JSON.stringify(patients));
+  } catch (_) {}
 };
 
 const formatDate = (value = new Date(), options) =>
@@ -191,7 +193,7 @@ const buildTodayPatientRecord = ({ doctor, formData, issuedAt = new Date(), sour
 };
 
 export const registerTodayPatient = ({ doctor, formData, issuedAt = new Date(), source = 'prescription' }) => {
-  if (typeof window === 'undefined' || !window.localStorage) return null;
+  if (typeof window === 'undefined' || !window.sessionStorage) return null;
 
   try {
     const record = buildTodayPatientRecord({ doctor, formData, issuedAt, source });
@@ -223,7 +225,7 @@ export const removeTodayPatientForDoctor = (doctor, patientId) => {
   const storageKey = getTodayPatientsStorageKey(doctor);
   const nextPatients = readStoredPatients(storageKey).filter((patient) => patient?.id !== patientId);
   writeStoredPatients(storageKey, nextPatients);
-  if (typeof window !== 'undefined' && window.localStorage) {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
     window.dispatchEvent(new CustomEvent('today-patients-updated', { detail: { storageKey } }));
   }
   return nextPatients;
@@ -233,7 +235,7 @@ export const clearTodayPatientsForDoctor = (doctor, dateString = new Date().toDa
   const storageKey = getTodayPatientsStorageKey(doctor);
   const nextPatients = readStoredPatients(storageKey).filter((patient) => patient?.dateString !== dateString);
   writeStoredPatients(storageKey, nextPatients);
-  if (typeof window !== 'undefined' && window.localStorage) {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
     window.dispatchEvent(new CustomEvent('today-patients-updated', { detail: { storageKey } }));
   }
   return nextPatients;

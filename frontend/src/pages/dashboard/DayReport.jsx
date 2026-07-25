@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import {
   FileText,
-  Printer,
   Clipboard,
   Calendar,
   ArrowLeft,
@@ -15,13 +14,20 @@ import {
   User,
   Loader2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
-import { useReactToPrint } from 'react-to-print';
 import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
-import { formatMedicineNamesSummary, getTodayPatientsForDoctor, buildDailyReportPdf, savePdf } from '../../utils/clinicDocuments';
-import { getPatientsByDateRange, getPatientHistory } from '../../services/patientApi';
+import {
+  formatMedicineNamesSummary,
+  getTodayPatientsForDoctor,
+  buildDailyReportPdf,
+  savePdf,
+  removeTodayPatientForDoctor,
+  clearTodayPatientsForDoctor,
+} from '../../utils/clinicDocuments';
+import { getPatientsByDateRange, getPatientHistory, deletePatient, deletePatientsBulk } from '../../services/patientApi';
 
 // ── Date Range Helpers ────────────────────────────────────────────────────────
 
@@ -392,6 +398,7 @@ const DayReport = () => {
           (patient.prescriptions || []).forEach((rx) => {
             rows.push({
               id: `${patient.patientId}_${rx.visitDate}`,
+              patientId: patient.patientId,
               patientName: patient.patientName,
               age: patient.age,
               gender: patient.gender,
@@ -442,13 +449,6 @@ const DayReport = () => {
     return () => window.removeEventListener('today-patients-updated', handleUpdate);
   }, [activePreset, loadPatients]);
 
-  // ── Print (filtered) ─────────────────────────────────────────────────────
-
-  const handlePrint = useReactToPrint({
-    content: () => reportRef.current,
-    documentTitle: `Report_${doctor?.clinicName || 'Clinic'}_${filterLabel || new Date().toLocaleDateString()}`,
-  });
-
   // ── Download PDF (filtered) ───────────────────────────────────────────────
 
   const handleDownloadPdf = () => {
@@ -475,6 +475,62 @@ const DayReport = () => {
     } catch (err) {
       console.error('PDF generation error:', err);
       toast.error('Failed to generate PDF report');
+    }
+  };
+
+  // ── Delete Handlers ────────────────────────────────────────────────────────
+
+  const handleDeleteIndividual = async (patientRecord) => {
+    const name = patientRecord.patientName || 'this patient';
+    if (!window.confirm(`Are you sure you want to PERMANENTLY DELETE patient '${name}' from the database?`)) {
+      return;
+    }
+
+    try {
+      if (patientRecord.patientId) {
+        await deletePatient(patientRecord.patientId);
+      }
+      if (doctor && (patientRecord.patientId || patientRecord.id)) {
+        removeTodayPatientForDoctor(doctor, patientRecord.patientId || patientRecord.id);
+      }
+      toast.success(`Patient '${name}' deleted from database`);
+      await loadPatients();
+    } catch (err) {
+      console.error('Individual deletion error:', err);
+      toast.error(err?.response?.data?.message || 'Failed to delete patient from database');
+    }
+  };
+
+  const handleDeleteBulkFiltered = async () => {
+    if (filteredPatientsList.length === 0) {
+      toast.error('No patient records found in the current filter to delete');
+      return;
+    }
+
+    const count = filteredPatientsList.length;
+    const periodName = filterLabel || activePreset;
+    if (!window.confirm(`WARNING: Are you sure you want to PERMANENTLY DELETE all ${count} patient record(s) for period '${periodName}' from the database?\n\nThis action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const patientIds = Array.from(
+        new Set(filteredPatientsList.map((p) => p.patientId).filter(Boolean))
+      );
+
+      if (patientIds.length > 0) {
+        await deletePatientsBulk(patientIds);
+      }
+
+      if (activePreset === 'today') {
+        clearTodayPatientsForDoctor(doctor);
+      }
+
+      toast.success(`Successfully deleted ${count} patient record(s) from database`);
+      await loadPatients();
+    } catch (err) {
+      console.error('Bulk deletion error:', err);
+      toast.error(err?.response?.data?.message || 'Failed to delete patients from database');
     }
   };
 
@@ -525,12 +581,13 @@ const DayReport = () => {
             <Download size={14} /> Download PDF Report
           </button>
           <button
-            onClick={handlePrint}
-            className="btn btn-ghost btn-sm"
+            onClick={handleDeleteBulkFiltered}
+            className="btn btn-danger btn-sm"
             disabled={filteredPatientsList.length === 0 || loading}
-            style={{ border: '1.5px solid var(--border)', background: 'transparent' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            title="Permanently delete all patient records in the selected filter from database"
           >
-            <Printer size={14} /> Print
+            <Trash2 size={14} /> Delete Filtered Patients
           </button>
         </div>
       </div>
@@ -731,15 +788,15 @@ const DayReport = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--primary)' }}>
-                  {['Sr.', 'Patient Name', 'Age/Gender', 'Blood Group', 'Chief Complaint', 'Medicines', 'Follow-up', 'Date & Time'].map((h) => (
-                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--dark)' }}>{h}</th>
+                  {['Sr.', 'Patient Name', 'Age/Gender', 'Blood Group', 'Chief Complaint', 'Medicines', 'Follow-up', 'Date & Time', 'Action'].map((h) => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: h === 'Action' ? 'center' : 'left', fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--dark)' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredPatientsList.length === 0 ? (
                   <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                    <td colSpan="9" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
                       No matching records found.
                     </td>
                   </tr>
@@ -759,6 +816,25 @@ const DayReport = () => {
                       <td style={{ padding: '10px', fontSize: '0.85rem' }}>{p.followUp}</td>
                       <td style={{ padding: '10px', fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {p.createdAt ? new Date(p.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'center' }}>
+                        <button
+                          onClick={() => handleDeleteIndividual(p)}
+                          style={{
+                            background: '#fee2e2',
+                            border: '1px solid #fca5a5',
+                            color: '#dc2626',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title={`Permanently delete ${p.patientName} from database`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   ))

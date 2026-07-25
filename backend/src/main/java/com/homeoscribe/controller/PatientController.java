@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -124,6 +125,37 @@ public class PatientController {
         String doctorId = resolveDoctorId(userDetails.getUsername());
         PatientVisitHistoryResponse history = patientService.getPatientHistory(doctorId, patientName, phone);
         return ResponseEntity.ok(ApiResponse.success("Patient history retrieved", history));
+    }
+
+    // ── Delete Endpoints ──────────────────────────────────────────────────────
+
+    /**
+     * DELETE /api/patients/{patientId}
+     * Completely remove a single patient record from the database.
+     */
+    @DeleteMapping("/{patientId}")
+    public ResponseEntity<ApiResponse<Void>> deletePatient(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @PathVariable String patientId) {
+
+        String doctorId = resolveDoctorId(userDetails.getUsername());
+        patientService.deletePatient(doctorId, patientId);
+        return ResponseEntity.ok(ApiResponse.success("Patient deleted successfully", null));
+    }
+
+    /**
+     * POST /api/patients/delete-bulk
+     * Completely remove multiple patient records from the database by IDs.
+     */
+    @PostMapping("/delete-bulk")
+    public ResponseEntity<ApiResponse<Map<String, Integer>>> deletePatientsBulk(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody Map<String, List<String>> payload) {
+
+        String doctorId = resolveDoctorId(userDetails.getUsername());
+        List<String> patientIds = payload != null ? payload.get("patientIds") : null;
+        int count = patientService.deletePatientsBulk(doctorId, patientIds);
+        return ResponseEntity.ok(ApiResponse.success(count + " patient(s) deleted successfully", Map.of("deletedCount", count)));
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────

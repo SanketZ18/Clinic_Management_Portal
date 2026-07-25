@@ -88,3 +88,25 @@ export const getPatientHistory = async ({ patientName, phone }) => {
   const response = await api.get('/patients/history', { params: { patientName, phone } });
   return response.data.data;
 };
+
+/**
+ * Delete a single patient record by patientId UUID.
+ *
+ * @param {string} patientId
+ * @returns {Promise<object>} response
+ */
+export const deletePatient = async (patientId) => {
+  const response = await api.delete(`/patients/${patientId}`);
+  return response.data;
+};
+
+/**
+ * Bulk delete patient records by list of patientIds.
+ *
+ * @param {string[]} patientIds
+ * @returns {Promise<object>} response
+ */
+export const deletePatientsBulk = async (patientIds) => {
+  const response = await api.post('/patients/delete-bulk', { patientIds });
+  return response.data;
+};

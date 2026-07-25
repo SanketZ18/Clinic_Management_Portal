@@ -188,6 +188,68 @@ public class PatientService {
                 .build();
     }
 
+    // ── Delete Patient ─────────────────────────────────────────────────────────
+
+    /**
+     * Delete an individual patient by patientId.
+     * Verifies the patient belongs to the authenticated doctor.
+     */
+    public void deletePatient(String doctorId, String patientId) {
+        Optional<Patient> patientOpt = patientRepository.findByPatientId(patientId);
+        if (patientOpt.isEmpty()) {
+            throw new ValidationException("Patient not found");
+        }
+
+        // Scope check
+        Optional<DoctorPatientMap> mapOpt = doctorPatientMapRepository.findByDoctorId(doctorId);
+        if (mapOpt.isEmpty() || !mapOpt.get().getPatientIds().contains(patientId)) {
+            throw new ValidationException("Patient not found in your records");
+        }
+
+        // Remove from doctor map
+        DoctorPatientMap map = mapOpt.get();
+        map.getPatientIds().remove(patientId);
+        doctorPatientMapRepository.save(map);
+
+        // Remove patient document
+        patientRepository.delete(patientOpt.get());
+        log.info("Patient {} deleted by doctor {}", patientId, doctorId);
+    }
+
+    /**
+     * Bulk delete patients by a list of patientIds.
+     * Only deletes patients scoped to the authenticated doctor.
+     */
+    public int deletePatientsBulk(String doctorId, List<String> patientIds) {
+        if (patientIds == null || patientIds.isEmpty()) {
+            return 0;
+        }
+
+        Optional<DoctorPatientMap> mapOpt = doctorPatientMapRepository.findByDoctorId(doctorId);
+        if (mapOpt.isEmpty() || mapOpt.get().getPatientIds().isEmpty()) {
+            return 0;
+        }
+
+        DoctorPatientMap map = mapOpt.get();
+        List<String> scopedIdsToDelete = patientIds.stream()
+                .filter(map.getPatientIds()::contains)
+                .distinct()
+                .collect(Collectors.toList());
+
+        if (scopedIdsToDelete.isEmpty()) {
+            return 0;
+        }
+
+        List<Patient> patientsToDelete = patientRepository.findByPatientIdIn(scopedIdsToDelete);
+        patientRepository.deleteAll(patientsToDelete);
+
+        map.getPatientIds().removeAll(scopedIdsToDelete);
+        doctorPatientMapRepository.save(map);
+
+        log.info("Bulk deleted {} patients for doctor {}", scopedIdsToDelete.size(), doctorId);
+        return scopedIdsToDelete.size();
+    }
+
     // ── Private Helpers ────────────────────────────────────────────────────────
 
     private PrescriptionEntry buildPrescriptionEntry(SavePatientPrescriptionRequest request) {

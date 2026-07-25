@@ -230,12 +230,24 @@ p { color: var(--text-muted); line-height: 1.7; }
 }
 
 .btn-danger {
-  background: var(--error);
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
   color: white;
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.25);
 }
 .btn-danger:hover {
-  background: #c0392b;
-  transform: translateY(-1px);
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.35);
+}
+.btn-danger:active {
+  transform: translateY(0);
+}
+.btn-danger:disabled {
+  background: #cbd5e1;
+  color: #94a3b8;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
 }
 
 .btn-sm {
@@ -1384,7 +1396,7 @@ p { color: var(--text-muted); line-height: 1.7; }
 }
 
 .day-report-download-btn {
-  background-color: #059669; /* emerald green matching second image */
+  background-color: #059669; /* emerald green */
   color: #ffffff;
   font-weight: 600;
   font-size: 0.85rem;

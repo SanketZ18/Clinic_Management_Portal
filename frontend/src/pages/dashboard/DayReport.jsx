@@ -20,12 +20,17 @@ import { useReactToPrint } from 'react-to-print';
 import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import toast from 'react-hot-toast';
-import { formatMedicineNamesSummary, getTodayPatientsForDoctor, savePdf } from '../../utils/clinicDocuments';
+import { formatMedicineNamesSummary, getTodayPatientsForDoctor, buildDailyReportPdf, savePdf } from '../../utils/clinicDocuments';
 import { getPatientsByDateRange, getPatientHistory } from '../../services/patientApi';
 
 // ── Date Range Helpers ────────────────────────────────────────────────────────
 
-const toISODate = (date) => date.toISOString().split('T')[0];
+const toISODate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
 
 const getPresetRange = (preset) => {
   const now = new Date();
@@ -444,6 +449,35 @@ const DayReport = () => {
     documentTitle: `Report_${doctor?.clinicName || 'Clinic'}_${filterLabel || new Date().toLocaleDateString()}`,
   });
 
+  // ── Download PDF (filtered) ───────────────────────────────────────────────
+
+  const handleDownloadPdf = () => {
+    if (filteredPatientsList.length === 0) {
+      toast.error('No patient records found for the selected filter');
+      return;
+    }
+
+    try {
+      const presetObj = FILTER_PRESETS.find((p) => p.id === activePreset);
+      const presetLabel = presetObj?.label || 'Report';
+      const titleText = activePreset === 'today' ? 'DAY REPORT' : `${presetLabel.toUpperCase()} PATIENT REPORT`;
+
+      const { doc, filename } = buildDailyReportPdf({
+        doctor,
+        patients: filteredPatientsList,
+        reportDate: new Date(),
+        periodLabel: filterLabel || presetLabel,
+        title: titleText,
+      });
+
+      savePdf(doc, filename);
+      toast.success(`PDF report downloaded (${filteredPatientsList.length} record${filteredPatientsList.length !== 1 ? 's' : ''})`);
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      toast.error('Failed to generate PDF report');
+    }
+  };
+
   // ── Patient History PDF ───────────────────────────────────────────────────
 
   const handleGenerateHistory = async () => {
@@ -479,16 +513,24 @@ const DayReport = () => {
         <button onClick={() => navigate('/doctor/register')} className="btn btn-ghost btn-sm">
           <ArrowLeft size={14} /> Back to Register
         </button>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <button onClick={loadPatients} className="btn btn-ghost btn-sm" disabled={loading}>
             <RefreshCw size={14} style={loading ? { animation: 'spin 1s linear infinite' } : {}} /> Reload
           </button>
           <button
-            onClick={handlePrint}
+            onClick={handleDownloadPdf}
             className="btn btn-primary btn-sm"
-            disabled={patients.length === 0 || loading}
+            disabled={filteredPatientsList.length === 0 || loading}
           >
-            <Printer size={14} /> Print / Export PDF
+            <Download size={14} /> Download PDF Report
+          </button>
+          <button
+            onClick={handlePrint}
+            className="btn btn-ghost btn-sm"
+            disabled={filteredPatientsList.length === 0 || loading}
+            style={{ border: '1.5px solid var(--border)', background: 'transparent' }}
+          >
+            <Printer size={14} /> Print
           </button>
         </div>
       </div>
@@ -675,6 +717,13 @@ const DayReport = () => {
                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
                   Generated: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </p>
+                <button
+                  onClick={handleDownloadPdf}
+                  className="btn btn-primary btn-sm"
+                  style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', padding: '4px 12px' }}
+                >
+                  <Download size={13} /> Export PDF
+                </button>
               </div>
             </div>
 

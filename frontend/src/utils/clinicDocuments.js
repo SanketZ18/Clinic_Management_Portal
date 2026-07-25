@@ -709,7 +709,7 @@ const drawReportHeader = (doc, clinic, title, subtitle, meta = {}) => {
   });
 };
 
-const drawReportSummary = (doc, reportDate, stats) => {
+const drawReportSummary = (doc, reportDate, stats, periodText) => {
   const pageWidth = doc.internal.pageSize.getWidth();
   const summaryX = 12;
   const summaryY = 46;
@@ -724,11 +724,11 @@ const drawReportSummary = (doc, reportDate, stats) => {
   doc.setFontSize(8.6);
   doc.setTextColor(...REPORT_COLORS.text);
 
-  const generatedText = `Generated: ${formatDate(reportDate, { day: '2-digit', month: 'numeric', year: 'numeric' })}, ${formatTime(reportDate)}`;
+  const periodDisplay = periodText ? `Period: ${periodText}` : `Generated: ${formatDate(reportDate, { day: '2-digit', month: 'numeric', year: 'numeric' })}`;
   const totalText = `Total patients: ${stats.total}`;
   const visitText = `New: ${stats.newCases}  •  Follow Up: ${stats.followUps}  •  Regular: ${stats.regularVisits}`;
 
-  doc.text(generatedText, summaryX + 4, summaryY + 7.8);
+  doc.text(periodDisplay, summaryX + 4, summaryY + 7.8);
   doc.text(totalText, summaryX + summaryWidth / 2, summaryY + 7.8, { align: 'center' });
   doc.text(visitText, summaryX + summaryWidth - 4, summaryY + 7.8, { align: 'right' });
 };
@@ -758,7 +758,7 @@ const drawReportRow = (doc, patient, rowIndex, rowY, columns, reportDate) => {
     const derivedNames = formatMedicineNamesSummary(patient.remedies);
     if (derivedNames && derivedNames !== 'N/A') return derivedNames;
 
-    return toText(patient.remedy, '-');
+    return toText(patient.remedy || patient.medicines, '-');
   })();
   const cells = [
     String(rowIndex + 1),
@@ -803,10 +803,10 @@ const drawReportEmptyState = (doc, y) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9.4);
   doc.setTextColor(...REPORT_COLORS.primaryDark);
-  doc.text('No patient records found for this date.', pageWidth / 2, y + 11.2, { align: 'center' });
+  doc.text('No patient records found for this period.', pageWidth / 2, y + 11.2, { align: 'center' });
 };
 
-export const buildDailyReportPdf = ({ doctor, patients, reportDate = new Date() }) => {
+export const buildDailyReportPdf = ({ doctor, patients = [], reportDate = new Date(), periodLabel, title = 'PATIENT REPORT' }) => {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -822,11 +822,15 @@ export const buildDailyReportPdf = ({ doctor, patients, reportDate = new Date() 
   };
 
   const safeDate = formatDate(reportDate, { day: '2-digit', month: 'short', year: 'numeric' });
-  const filename = `Day_Report_${fileSafe(clinic.clinicName)}_${safeDate.replace(/\s/g, '_')}.pdf`;
+  const periodText = periodLabel || safeDate;
+  const filename = `Report_${fileSafe(clinic.clinicName)}_${fileSafe(periodText)}.pdf`;
   const total = patients.length;
-  const newCases = patients.filter((patient) => toText(patient.visitType, 'New') === 'New').length;
-  const followUps = patients.filter((patient) => toText(patient.visitType, '') === 'Follow-up').length;
-  const regularVisits = patients.filter((patient) => toText(patient.visitType, '') === 'Regular').length;
+  const newCases = patients.filter((patient) => toText(patient.visitType, 'New').toLowerCase() === 'new').length;
+  const followUps = patients.filter((patient) => {
+    const vt = toText(patient.visitType, '').toLowerCase();
+    return vt.includes('follow');
+  }).length;
+  const regularVisits = patients.filter((patient) => toText(patient.visitType, '').toLowerCase() === 'regular').length;
 
   const columns = [
     { label: 'Sr No.', width: 10 },
@@ -835,17 +839,17 @@ export const buildDailyReportPdf = ({ doctor, patients, reportDate = new Date() 
     { label: 'Gender', width: 14 },
     { label: 'Phone Number', width: 30 },
     { label: 'Visit Type', width: 20 },
-    { label: 'Referred By.', width: 28 },
+    { label: 'Referred By', width: 28 },
     { label: 'Symptoms', width: 58 },
     { label: 'Medicines', width: 30 },
     { label: 'Next Visit', width: 34 },
   ];
 
   const startPage = () => {
-    drawReportHeader(doc, clinic, 'DAY REPORT', 'Daily Patient Report', {
+    drawReportHeader(doc, clinic, title.toUpperCase(), `Period: ${periodText}`, {
       dateText: safeDate,
     });
-    drawReportSummary(doc, reportDate, { total, newCases, followUps, regularVisits });
+    drawReportSummary(doc, reportDate, { total, newCases, followUps, regularVisits }, periodText);
     drawReportTableHeader(doc, columns, 60);
   };
 
@@ -867,7 +871,7 @@ export const buildDailyReportPdf = ({ doctor, patients, reportDate = new Date() 
         const derivedNames = formatMedicineNamesSummary(patient.remedies);
         if (derivedNames && derivedNames !== 'N/A') return derivedNames;
 
-        return toText(patient.remedy, '-');
+        return toText(patient.remedy || patient.medicines, '-');
       })();
       const rowHeight = Math.max(
         12,
@@ -896,8 +900,8 @@ export const buildDailyReportPdf = ({ doctor, patients, reportDate = new Date() 
   }
 
   const shareText = [
-    `Day report for ${clinic.clinicName}`,
-    `Date: ${safeDate}`,
+    `Patient report for ${clinic.clinicName}`,
+    `Period: ${periodText}`,
     `Total patients: ${total}`,
     `New cases: ${newCases}`,
     `Follow-ups: ${followUps}`,

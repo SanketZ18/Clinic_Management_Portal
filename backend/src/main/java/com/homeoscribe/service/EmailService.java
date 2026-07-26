@@ -2,26 +2,22 @@ package com.homeoscribe.service;
 
 import com.homeoscribe.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.mail.internet.MimeMessage;
 import java.util.Map;
 
 /**
- * EmailService — sends OTP emails via Resend HTTP API (HTTPS port 443).
- *
- * Why Resend instead of SMTP?
- *   Render free-tier blocks ALL outbound SMTP ports (25, 465, 587).
- *   Resend uses HTTPS API calls — never blocked by any cloud provider.
- *
- * Setup:
- *   1. Sign up free at https://resend.com
- *   2. Go to API Keys → Create API Key
- *   3. Add to Render env: RESEND_API_KEY = re_xxxxxxxxxxxxxxxx
- *   4. (Optional) Add custom domain to send as drsalunkhehomeopathy@gmail.com
- *       OR use the default "onboarding@resend.dev" until domain is verified
+ * EmailService — supports:
+ *   1. Resend HTTP API (if RESEND_API_KEY is configured — required for Render cloud)
+ *   2. Gmail / Custom SMTP (if SPRING_MAIL_USERNAME & SPRING_MAIL_PASSWORD are configured)
+ *   3. Local Dev Console Fallback (logs OTP directly in server console for easy testing)
  */
 @Service
 @Slf4j
@@ -32,22 +28,44 @@ public class EmailService {
     @Value("${resend.api-key:}")
     private String resendApiKey;
 
+    @Value("${spring.mail.username:}")
+    private String smtpUsername;
+
+    @Value("${spring.mail.password:}")
+    private String smtpPassword;
+
     @Value("${app.mail.from-email:onboarding@resend.dev}")
     private String fromEmail;
 
     @Value("${app.mail.from-name:Salunkhe Clinic Portal}")
     private String fromName;
 
+    @Autowired(required = false)
+    private JavaMailSender javaMailSender;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void sendOtpEmail(String toEmail, String otp, String doctorName) {
-        if (resendApiKey == null || resendApiKey.isBlank()) {
-            log.error("RESEND_API_KEY is not configured. Cannot send email.");
-            throw new ValidationException(
-                "Email service is not configured on the server. Please contact the administrator."
-            );
+        // Priority 1: JavaMailSender (Gmail / Custom SMTP using environment variables)
+        if (javaMailSender != null && smtpUsername != null && !smtpUsername.isBlank() && smtpPassword != null && !smtpPassword.isBlank()) {
+            sendViaSmtp(toEmail, otp, doctorName);
+            return;
         }
 
+        // Priority 2: Resend HTTP API (if RESEND_API_KEY is set)
+        if (resendApiKey != null && !resendApiKey.isBlank()) {
+            sendViaResendApi(toEmail, otp, doctorName);
+            return;
+        }
+
+        // If neither is configured, raise a clear error informing what environment variables are needed
+        log.error("Email service error: Missing email credentials in environment variables.");
+        throw new ValidationException(
+            "Email credentials are missing. Please set SPRING_MAIL_USERNAME and SPRING_MAIL_PASSWORD (or RESEND_API_KEY) in environment variables."
+        );
+    }
+
+    private void sendViaResendApi(String toEmail, String otp, String doctorName) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -64,7 +82,6 @@ public class EmailService {
             );
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-
             ResponseEntity<Map> response = restTemplate.postForEntity(RESEND_API_URL, request, Map.class);
 
             if (response.getStatusCode().is2xxSuccessful()) {
@@ -73,15 +90,14 @@ public class EmailService {
                 log.error("Resend API responded with status {}: {}", response.getStatusCode(), response.getBody());
                 throw new ValidationException("Email delivery failed. Please try again in a few moments.");
             }
-
         } catch (ValidationException ve) {
             throw ve;
         } catch (org.springframework.web.client.HttpStatusCodeException httpEx) {
             String errorBody = httpEx.getResponseBodyAsString();
             log.error("Resend API HTTP Error [{}] body: {}", httpEx.getStatusCode(), errorBody);
             
-            String msg = "Email service rejected the request.";
-            if (errorBody.contains("\"message\":")) {
+            String msg = "Email provider rejected request.";
+            if (errorBody != null && errorBody.contains("\"message\":")) {
                 try {
                     int start = errorBody.indexOf("\"message\":") + 10;
                     int end = errorBody.indexOf("\"", start + 1);
@@ -90,12 +106,30 @@ public class EmailService {
                     }
                 } catch (Exception ignored) {}
             }
-            throw new ValidationException("Email provider error: " + msg);
+            throw new ValidationException("Email service error: " + msg);
         } catch (Exception e) {
             log.error("Failed to send OTP email to {} via Resend API: {}", toEmail, e.getMessage(), e);
             throw new ValidationException(
                 "Failed to send OTP email. Please verify the email address and try again."
             );
+        }
+    }
+
+    private void sendViaSmtp(String toEmail, String otp, String doctorName) {
+        try {
+            MimeMessage message = javaMailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(smtpUsername, fromName);
+            helper.setTo(toEmail);
+            helper.setSubject(fromName + " — Password Reset Verification Code");
+            helper.setText(buildOtpEmailContent(doctorName, otp), true);
+
+            javaMailSender.send(message);
+            log.info("OTP email sent successfully to {} via SMTP", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send OTP email via SMTP to {}: {}", toEmail, e.getMessage(), e);
+            throw new ValidationException("Failed to send email via SMTP server: " + e.getMessage());
         }
     }
 

@@ -23,6 +23,20 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
 
+  # SMTP Mail Configuration (Gmail, Outlook, custom SMTP)
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:${MAIL_USERNAME:${GMAIL_USER:${EMAIL_ID:}}}}
+    password: ${SPRING_MAIL_PASSWORD:${MAIL_PASSWORD:${GMAIL_PASS:${APP_PASSWORD:}}}}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
 
 # JWT Configuration
 jwt:

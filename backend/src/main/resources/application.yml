@@ -8,6 +8,9 @@ server:
     connection-timeout: 5000ms   # Drop connections that take more than 5s to handshake
 
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   data:
     mongodb:
       uri: ${MONGO_URI:mongodb+srv://akaramsalunke:Abb1234567%40@clinic.l3elgjk.mongodb.net/ClinicSystem?appName=Clinic}

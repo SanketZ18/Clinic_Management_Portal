@@ -1,0 +1,7 @@
+# Ignore environment credentials file (do NOT commit to git)
+.env
+*.env
+application-local.yml
+target/
+.mvn/
+*.log

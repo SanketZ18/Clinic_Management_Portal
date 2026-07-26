@@ -24,10 +24,10 @@ spring:
       fail-on-unknown-properties: false
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: drsalunkhehomeopathy@gmail.com
-    password: tcapvicxxxjugmqa
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:drsalunkhehomeopathy@gmail.com}
+    password: ${MAIL_PASSWORD:tcapvicxxxjugmqa}
     properties:
       mail:
         smtp:
@@ -36,7 +36,7 @@ spring:
             enable: true
             required: true
           ssl:
-            trust: smtp.gmail.com
+            trust: ${MAIL_HOST:smtp.gmail.com}
             protocols: TLSv1.2 TLSv1.3
           connectiontimeout: 5000
           timeout: 5000

@@ -4,6 +4,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -17,18 +18,20 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    // Hardcoded sender — never overridden by any environment variable
-    private static final String FROM_EMAIL = "drsalunkhehomeopathy@gmail.com";
-    private static final String FROM_NAME  = "Salunkhe Clinic Portal";
+    @Value("${spring.mail.username:drsalunkhehomeopathy@gmail.com}")
+    private String fromEmail;
+
+    @Value("${app.mail.from-name:Salunkhe Clinic Portal}")
+    private String fromName;
 
     public void sendOtpEmail(String toEmail, String otp, String doctorName) {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, StandardCharsets.UTF_8.name());
 
-            helper.setFrom(FROM_EMAIL, FROM_NAME);
+            helper.setFrom(fromEmail, fromName);
             helper.setTo(toEmail);
-            helper.setSubject("Salunkhe Clinic Portal — Password Reset Verification Code");
+            helper.setSubject(fromName + " — Password Reset Verification Code");
 
             String htmlContent = buildOtpEmailContent(doctorName, otp);
             helper.setText(htmlContent, true);

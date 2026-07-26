@@ -49,6 +49,7 @@ D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\PatientService.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\controller\PatientController.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\PatientSearchRequest.java
+D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\config\MailConfig.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\exception\AuthException.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\exception\DuplicateResourceException.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\SavePatientPrescriptionRequest.java

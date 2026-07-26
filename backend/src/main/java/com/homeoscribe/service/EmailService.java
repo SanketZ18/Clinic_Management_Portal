@@ -1,5 +1,6 @@
 package com.homeoscribe.service;
 
+import com.homeoscribe.exception.ValidationException;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,7 @@ public class EmailService {
             log.info("Password reset OTP email sent successfully to {}", toEmail);
         } catch (Exception e) {
             log.error("Failed to send OTP email to {}: {}", toEmail, e.getMessage(), e);
-            throw new RuntimeException("Failed to send OTP email. Please ensure your email is correct and try again.");
+            throw new ValidationException("Failed to send OTP email (" + e.getMessage() + "). Please check your SMTP email credentials or try again.");
         }
     }
 

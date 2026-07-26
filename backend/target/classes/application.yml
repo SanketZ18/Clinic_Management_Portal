@@ -23,29 +23,22 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
 
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:drsalunkhehomeopathy@gmail.com}
-    password: ${MAIL_PASSWORD:tcapvicxxxjugmqa}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-          ssl:
-            trust: ${MAIL_HOST:smtp.gmail.com}
-            protocols: TLSv1.2 TLSv1.3
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
 
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:homeoscribe-super-secret-key-2024-production-clinic-management-platform}
   access-token-expiration: 604800000    # 7 days in ms
+
+# Resend Email API — uses HTTPS (port 443), works on all cloud platforms including Render free tier
+# SMTP is blocked by Render. This API-based approach is the correct solution.
+resend:
+  api-key: ${RESEND_API_KEY:}
+
+# App-level mail display settings
+app:
+  mail:
+    from-email: ${MAIL_FROM_EMAIL:onboarding@resend.dev}
+    from-name: ${MAIL_FROM_NAME:Salunkhe Clinic Portal}
 
 # CORS
 cors:

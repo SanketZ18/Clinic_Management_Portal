@@ -1,47 +1,86 @@
 package com.homeoscribe.service;
 
 import com.homeoscribe.exception.ValidationException;
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
+/**
+ * EmailService — sends OTP emails via Resend HTTP API (HTTPS port 443).
+ *
+ * Why Resend instead of SMTP?
+ *   Render free-tier blocks ALL outbound SMTP ports (25, 465, 587).
+ *   Resend uses HTTPS API calls — never blocked by any cloud provider.
+ *
+ * Setup:
+ *   1. Sign up free at https://resend.com
+ *   2. Go to API Keys → Create API Key
+ *   3. Add to Render env: RESEND_API_KEY = re_xxxxxxxxxxxxxxxx
+ *   4. (Optional) Add custom domain to send as drsalunkhehomeopathy@gmail.com
+ *       OR use the default "onboarding@resend.dev" until domain is verified
+ */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private static final String RESEND_API_URL = "https://api.resend.com/emails";
 
-    @Value("${spring.mail.username:drsalunkhehomeopathy@gmail.com}")
+    @Value("${resend.api-key:}")
+    private String resendApiKey;
+
+    @Value("${app.mail.from-email:onboarding@resend.dev}")
     private String fromEmail;
 
     @Value("${app.mail.from-name:Salunkhe Clinic Portal}")
     private String fromName;
 
+    private final RestTemplate restTemplate = new RestTemplate();
+
     public void sendOtpEmail(String toEmail, String otp, String doctorName) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            log.error("RESEND_API_KEY is not configured. Cannot send email.");
+            throw new ValidationException(
+                "Email service is not configured on the server. Please contact the administrator."
+            );
+        }
+
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED, StandardCharsets.UTF_8.name());
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(resendApiKey.trim());
 
-            helper.setFrom(fromEmail, fromName);
-            helper.setTo(toEmail);
-            helper.setSubject(fromName + " — Password Reset Verification Code");
-
+            String fromAddress = String.format("%s <%s>", fromName, fromEmail);
             String htmlContent = buildOtpEmailContent(doctorName, otp);
-            helper.setText(htmlContent, true);
 
-            mailSender.send(message);
-            log.info("Password reset OTP email sent successfully to {}", toEmail);
+            Map<String, Object> body = Map.of(
+                "from",    fromAddress,
+                "to",      new String[]{ toEmail },
+                "subject", fromName + " — Password Reset Verification Code",
+                "html",    htmlContent
+            );
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(RESEND_API_URL, request, Map.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("OTP email sent successfully to {} via Resend API", toEmail);
+            } else {
+                log.error("Resend API responded with status {}: {}", response.getStatusCode(), response.getBody());
+                throw new ValidationException("Email delivery failed. Please try again in a few moments.");
+            }
+
+        } catch (ValidationException ve) {
+            throw ve;
         } catch (Exception e) {
-            log.error("Failed to send OTP email to {}: {}", toEmail, e.getMessage(), e);
-            throw new ValidationException("Failed to send OTP email (" + e.getMessage() + "). Please check your SMTP email credentials or try again.");
+            log.error("Failed to send OTP email to {} via Resend API: {}", toEmail, e.getMessage(), e);
+            throw new ValidationException(
+                "Failed to send OTP email. Please verify the email address and try again. (" + e.getMessage() + ")"
+            );
         }
     }
 
@@ -58,11 +97,11 @@ public class EmailService {
                     .header { background: linear-gradient(135deg, #1d4ed8 0%%, #0ea5e9 100%%); padding: 30px 24px; text-align: center; color: #ffffff; }
                     .header h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.5px; }
                     .header p { margin: 6px 0 0 0; font-size: 13px; opacity: 0.9; }
-                    .body { padding: 32px 28px; text-align: center; }
-                    .greeting { font-size: 16px; font-weight: 600; color: #1e293b; text-align: left; margin-bottom: 16px; }
-                    .text { font-size: 14px; color: #475569; line-height: 1.6; text-align: left; margin-bottom: 24px; }
+                    .body { padding: 32px 28px; }
+                    .greeting { font-size: 16px; font-weight: 600; color: #1e293b; margin-bottom: 16px; }
+                    .text { font-size: 14px; color: #475569; line-height: 1.6; margin-bottom: 24px; }
                     .otp-box { background: #f0f6ff; border: 2px dashed #3b82f6; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center; }
-                    .otp-code { font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #1d4ed8; font-family: monospace; margin: 0; }
+                    .otp-code { font-size: 40px; font-weight: 800; letter-spacing: 10px; color: #1d4ed8; font-family: monospace; margin: 0; }
                     .expiry-text { font-size: 12px; color: #64748b; margin-top: 8px; }
                     .footer { background-color: #f8fafc; padding: 20px; text-align: center; font-size: 12px; color: #94a3b8; border-top: 1px solid #f1f5f9; }
                 </style>
@@ -71,12 +110,13 @@ public class EmailService {
                 <div class="card">
                     <div class="header">
                         <h1>Salunkhe Clinic Portal</h1>
-                        <p>Doctor Portal Password Reset Request</p>
+                        <p>Doctor Portal — Password Reset Request</p>
                     </div>
                     <div class="body">
-                        <div class="greeting">Hello,  %s,</div>
+                        <div class="greeting">Hello, %s</div>
                         <div class="text">
-                            We received a request to reset your password for your <strong>Salunkhe Clinic Portal</strong> account. Use the 6-digit OTP code below to verify your identity:
+                            We received a request to reset your password for your <strong>Salunkhe Clinic Portal</strong> account.
+                            Use the 6-digit OTP code below to verify your identity:
                         </div>
                         <div class="otp-box">
                             <div class="otp-code">%s</div>

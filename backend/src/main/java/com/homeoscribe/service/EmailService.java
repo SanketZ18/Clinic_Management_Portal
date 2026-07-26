@@ -76,10 +76,25 @@ public class EmailService {
 
         } catch (ValidationException ve) {
             throw ve;
+        } catch (org.springframework.web.client.HttpStatusCodeException httpEx) {
+            String errorBody = httpEx.getResponseBodyAsString();
+            log.error("Resend API HTTP Error [{}] body: {}", httpEx.getStatusCode(), errorBody);
+            
+            String msg = "Email service rejected the request.";
+            if (errorBody.contains("\"message\":")) {
+                try {
+                    int start = errorBody.indexOf("\"message\":") + 10;
+                    int end = errorBody.indexOf("\"", start + 1);
+                    if (start > 10 && end > start) {
+                        msg = errorBody.substring(start, end + 1).replaceAll("^\"|\"$", "");
+                    }
+                } catch (Exception ignored) {}
+            }
+            throw new ValidationException("Email provider error: " + msg);
         } catch (Exception e) {
             log.error("Failed to send OTP email to {} via Resend API: {}", toEmail, e.getMessage(), e);
             throw new ValidationException(
-                "Failed to send OTP email. Please verify the email address and try again. (" + e.getMessage() + ")"
+                "Failed to send OTP email. Please verify the email address and try again."
             );
         }
     }

@@ -23,6 +23,25 @@ spring:
     deserialization:
       fail-on-unknown-properties: false
 
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: drsalunkhehomeopathy@gmail.com
+    password: tcapvicxxxjugmqa
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          ssl:
+            trust: smtp.gmail.com
+            protocols: TLSv1.2 TLSv1.3
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:homeoscribe-super-secret-key-2024-production-clinic-management-platform}

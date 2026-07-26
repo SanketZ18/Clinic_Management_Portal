@@ -30,6 +30,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final EmailService emailService;
 
     public AuthResponse register(RegisterRequest request) {
         // Validate passwords match
@@ -146,5 +147,73 @@ public class AuthService {
             return fallback;
         }
         return value;
+    }
+
+    public void sendForgotPasswordOtp(SendOtpRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        Doctor doctor = doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new ValidationException("No doctor account found with this email address."));
+
+        String otp = String.format("%06d", new java.security.SecureRandom().nextInt(1000000));
+
+        doctor.setResetOtp(otp);
+        doctor.setResetOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        doctor.setResetOtpVerified(false);
+        doctorRepository.save(doctor);
+
+        emailService.sendOtpEmail(doctor.getEmail(), otp, doctor.getFullName());
+        log.info("Password reset OTP generated and sent to email: {}", email);
+    }
+
+    public void verifyForgotPasswordOtp(VerifyOtpRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        Doctor doctor = doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new ValidationException("No doctor account found with this email address."));
+
+        if (doctor.getResetOtp() == null || doctor.getResetOtpExpiry() == null) {
+            throw new ValidationException("No OTP request found. Please request a new OTP.");
+        }
+
+        if (LocalDateTime.now().isAfter(doctor.getResetOtpExpiry())) {
+            throw new ValidationException("OTP has expired. Please request a new OTP.");
+        }
+
+        if (!doctor.getResetOtp().trim().equals(request.getOtp().trim())) {
+            throw new ValidationException("Invalid OTP. Please check the 6-digit code sent to your email.");
+        }
+
+        doctor.setResetOtpVerified(true);
+        doctorRepository.save(doctor);
+        log.info("OTP verified successfully for doctor email: {}", email);
+    }
+
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new ValidationException("Passwords do not match.");
+        }
+
+        if (request.getNewPassword().length() < 8 || !request.getNewPassword().matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).*$")) {
+            throw new ValidationException("Password must be at least 8 characters long and contain uppercase, lowercase letter & number.");
+        }
+
+        String email = request.getEmail().toLowerCase().trim();
+        Doctor doctor = doctorRepository.findByEmail(email)
+                .orElseThrow(() -> new ValidationException("No doctor account found with this email address."));
+
+        if (doctor.getResetOtp() == null || !doctor.isResetOtpVerified() || !doctor.getResetOtp().trim().equals(request.getOtp().trim())) {
+            throw new ValidationException("OTP is not verified. Please verify your OTP first.");
+        }
+
+        if (doctor.getResetOtpExpiry() != null && LocalDateTime.now().isAfter(doctor.getResetOtpExpiry())) {
+            throw new ValidationException("OTP session has expired. Please request a new OTP.");
+        }
+
+        doctor.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        doctor.setResetOtp(null);
+        doctor.setResetOtpExpiry(null);
+        doctor.setResetOtpVerified(false);
+        doctorRepository.save(doctor);
+
+        log.info("Password successfully reset for doctor: {}", email);
     }
 }

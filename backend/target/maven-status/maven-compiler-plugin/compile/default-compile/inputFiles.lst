@@ -2,10 +2,12 @@ D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\model\PrescriptionEntry.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\AuthService.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\config\MongoConfig.java
+D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\ResetPasswordRequest.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\SearchRequest.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\controller\AuthController.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\config\StartupLogger.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\CustomUserDetailsService.java
+D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\SendOtpRequest.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\model\Doctor.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\HomeoscribeApplication.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\RemedyItem.java
@@ -17,6 +19,7 @@ D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\exception\GlobalExceptionHandler.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\filter\RateLimitFilter.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\controller\SearchController.java
+D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\VerifyOtpRequest.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\repository\DoctorRepository.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\repository\PatientRepository.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\repository\DoctorPatientMapRepository.java
@@ -25,6 +28,7 @@ D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\SearchService.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\model\Patient.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\DoctorService.java
+D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\EmailService.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\controller\DoctorController.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\RegisterRequest.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\dto\request\PrescriptionRequest.java

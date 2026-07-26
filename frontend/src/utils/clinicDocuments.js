@@ -959,3 +959,225 @@ export const buildWhatsAppLink = (input) => {
 
 export const buildEmailLink = ({ to, subject, body }) =>
   `mailto:${to || ''}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+export const buildPatientHistoryPdf = (doctor, historyData) => {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pw = doc.internal.pageSize.getWidth();
+  const margin = 14;
+  const contentWidth = pw - margin * 2;
+  let y = margin;
+
+  const COLORS = {
+    primary: [15, 46, 91],
+    primaryDark: [10, 28, 64],
+    primaryLight: [235, 243, 255],
+    accent: [246, 160, 35],
+    line: [203, 213, 225],
+    text: [15, 23, 42],
+    muted: [100, 116, 139],
+    white: [255, 255, 255],
+    rowAlt: [248, 250, 252],
+  };
+
+  const text = (v, fallback = 'N/A') => {
+    if (v === null || v === undefined) return fallback;
+    const s = String(v).trim();
+    return s || fallback;
+  };
+
+  const checkPage = (needed = 10) => {
+    if (y + needed > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      y = margin;
+      drawHeader();
+    }
+  };
+
+  const drawHeader = () => {
+    doc.setFillColor(...COLORS.primary);
+    doc.roundedRect(margin, y, 18, 18, 3, 3, 'F');
+    doc.setFillColor(...COLORS.white);
+    doc.rect(margin + 7.5, y + 3.5, 3, 11, 'F');
+    doc.rect(margin + 3.5, y + 7.5, 11, 3, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.setTextColor(...COLORS.primary);
+    doc.text(text(doctor?.clinicName, 'Clinic'), margin + 21, y + 6);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(...COLORS.text);
+    doc.text(text(doctor?.fullName, 'Doctor'), margin + 21, y + 11);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.2);
+    doc.setTextColor(...COLORS.muted);
+    doc.text(`${text(doctor?.qualification)} | Reg: ${text(doctor?.licenseNumber)}`, margin + 21, y + 15.2);
+    doc.text(text(doctor?.clinicAddress, ''), margin + 21, y + 18.5);
+
+    doc.setFillColor(...COLORS.primaryDark);
+    doc.roundedRect(pw - margin - 54, y, 54, 20, 4, 4, 'F');
+    doc.setFillColor(...COLORS.accent);
+    doc.roundedRect(pw - margin - 50, y + 3, 22, 5, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...COLORS.white);
+    doc.text('PATIENT HISTORY', pw - margin - 39, y + 6.8, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9.5);
+    doc.text(text(historyData.patientName), pw - margin - 2, y + 13, { align: 'right' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.8);
+    doc.text(`Total Visits: ${historyData.totalVisits}`, pw - margin - 2, y + 17.5, { align: 'right' });
+
+    doc.setDrawColor(...COLORS.primary);
+    doc.setLineWidth(0.4);
+    doc.line(margin, y + 22, pw - margin, y + 22);
+    y += 27;
+  };
+
+  drawHeader();
+
+  const bandHeight = 30;
+  doc.setFillColor(...COLORS.primaryLight);
+  doc.setDrawColor(...COLORS.line);
+  doc.roundedRect(margin, y, contentWidth, bandHeight, 3, 3, 'FD');
+
+  const halfW = contentWidth / 2;
+  const lx = margin + 5;
+  const lv = margin + 32;
+  const rx = margin + halfW + 5;
+  const rv = margin + halfW + 28;
+  const rowH = 6.5;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.8);
+  doc.setTextColor(...COLORS.muted);
+  doc.text('Name:',       lx, y + rowH);
+  doc.text('Age/Gender:', lx, y + rowH * 2);
+  doc.text('Blood Group:',lx, y + rowH * 3);
+  doc.text('Phone:',      lx, y + rowH * 4);
+  doc.text('Email:',      rx, y + rowH);
+  doc.text('Address:',    rx, y + rowH * 2);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...COLORS.text);
+  doc.text(text(historyData.patientName),                    lv, y + rowH);
+  doc.text(`${text(historyData.age)} yrs / ${text(historyData.gender)}`, lv, y + rowH * 2);
+  doc.text(text(historyData.bloodGroup),                     lv, y + rowH * 3);
+  doc.text(text(historyData.phone),                          lv, y + rowH * 4);
+  doc.text(text(historyData.email),                          rv, y + rowH);
+  const addrLines = doc.splitTextToSize(text(historyData.address, '—'), halfW - rv + margin + halfW - 6);
+  doc.text(addrLines,                                        rv, y + rowH * 2);
+
+  y += bandHeight + 5;
+
+  const visits = historyData.prescriptions || [];
+  visits.forEach((visit, idx) => {
+    checkPage(50);
+
+    doc.setFillColor(...COLORS.primaryDark);
+    doc.roundedRect(margin, y, contentWidth, 9, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...COLORS.white);
+    const visitDateStr = visit.visitDate
+      ? new Date(visit.visitDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
+      : 'N/A';
+    doc.text(`VISIT ${idx + 1}  —  ${visitDateStr}  (${text(visit.visitType, 'Consultation')})`, margin + 3, y + 6);
+    y += 12;
+
+    const clinicalRows = [
+      ['Chief Complaint', visit.chiefComplaint],
+      ['Diagnosis', visit.diagnosis],
+      ['Doctor Notes', visit.doctorNotes],
+    ].filter(([, v]) => v && v.trim());
+
+    clinicalRows.forEach(([label, value]) => {
+      checkPage(8);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.muted);
+      doc.text(`${label}:`, margin + 2, y);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...COLORS.text);
+      const lines = doc.splitTextToSize(text(value), contentWidth - 35);
+      doc.text(lines, margin + 30, y);
+      y += Math.max(5.5, lines.length * 4.5);
+    });
+
+    y += 2;
+
+    if (visit.remedies && visit.remedies.length > 0) {
+      checkPage(30);
+      const colWidths = [10, contentWidth * 0.35, contentWidth * 0.18, contentWidth * 0.18, contentWidth * 0.22];
+      const colX = [margin, margin + colWidths[0], margin + colWidths[0] + colWidths[1],
+        margin + colWidths[0] + colWidths[1] + colWidths[2],
+        margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]];
+      const headers = ['#', 'Remedy Name', 'Potency', 'Dose', 'Instructions'];
+
+      doc.setFillColor(...COLORS.accent);
+      doc.rect(margin, y, contentWidth, 7, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.white);
+      headers.forEach((h, i) => doc.text(h, colX[i] + 2, y + 4.8));
+      y += 7;
+
+      visit.remedies.forEach((remedy, rIdx) => {
+        checkPage(8);
+        if (rIdx % 2 === 1) { doc.setFillColor(...COLORS.rowAlt); doc.rect(margin, y, contentWidth, 7, 'F'); }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.text);
+        const rowData = [String(rIdx + 1), text(remedy.remedyName), text(remedy.potency), text(remedy.dose), text(remedy.frequency)];
+        rowData.forEach((cell, i) => {
+          const cellLines = doc.splitTextToSize(cell, colWidths[i] - 4);
+          doc.text(cellLines, colX[i] + 2, y + 4.8);
+        });
+        doc.setDrawColor(...COLORS.line); doc.setLineWidth(0.1);
+        doc.line(margin, y + 7, margin + contentWidth, y + 7);
+        y += 7;
+      });
+    }
+
+    checkPage(10);
+    y += 3;
+    doc.setFillColor(...COLORS.primaryLight);
+    doc.roundedRect(margin, y, contentWidth, 7, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.primaryDark);
+    const followUpText = visit.nextVisitDate
+      ? `Next Visit: ${visit.nextVisitDate}  |  Follow-up: ${text(visit.followUpDays)} days`
+      : `Follow-up: ${text(visit.followUpDays)} days`;
+    doc.text(followUpText, margin + 4, y + 4.8);
+    y += 10;
+
+    if (idx < visits.length - 1) {
+      checkPage(8);
+      doc.setDrawColor(...COLORS.line); doc.setLineWidth(0.4);
+      doc.setLineDashPattern([2, 2], 0);
+      doc.line(margin, y, margin + contentWidth, y);
+      doc.setLineDashPattern([], 0);
+      y += 8;
+    }
+  });
+
+  checkPage(30);
+  y += 10;
+  doc.setDrawColor(...COLORS.line); doc.line(margin, y, margin + contentWidth, y);
+  y += 5;
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(...COLORS.muted);
+  doc.text('* This patient history report is generated by the clinic management system and is confidential.', margin, y);
+
+  const sigX = pw - margin - 55;
+  const sigY = y - 20;
+  if (doctor?.signatureBase64) {
+    try {
+      const fmt = doctor.signatureBase64.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
+      doc.addImage(doctor.signatureBase64, fmt, sigX, sigY, 48, 16, undefined, 'FAST');
+    } catch (_) {}
+  }
+  doc.setDrawColor(...COLORS.primaryDark); doc.line(sigX, sigY + 18, sigX + 48, sigY + 18);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.text);
+  doc.text(text(doctor?.fullName, 'Doctor'), sigX + 24, sigY + 22, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...COLORS.muted);
+  doc.text('Authorized Signature', sigX + 24, sigY + 26, { align: 'center' });
+
+  const patientSafe = text(historyData.patientName, 'patient').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const phoneSafe = text(historyData.phone, '').replace(/\D/g, '');
+  const filename = `Patient_${patientSafe}_${phoneSafe}_History.pdf`;
+
+  return { doc, filename };
+};

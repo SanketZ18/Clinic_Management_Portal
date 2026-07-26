@@ -48,6 +48,11 @@ public class Doctor {
 
     private LocalDateTime lastLoginAt;
 
+    private String resetOtp;
+    private LocalDateTime resetOtpExpiry;
+    @Builder.Default
+    private boolean isResetOtpVerified = false;
+
     @CreatedDate
     private LocalDateTime createdAt;
 

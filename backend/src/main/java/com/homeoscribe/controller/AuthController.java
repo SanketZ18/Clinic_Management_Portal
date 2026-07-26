@@ -2,6 +2,9 @@ package com.homeoscribe.controller;
 
 import com.homeoscribe.dto.request.LoginRequest;
 import com.homeoscribe.dto.request.RegisterRequest;
+import com.homeoscribe.dto.request.SendOtpRequest;
+import com.homeoscribe.dto.request.VerifyOtpRequest;
+import com.homeoscribe.dto.request.ResetPasswordRequest;
 import com.homeoscribe.dto.response.ApiResponse;
 import com.homeoscribe.dto.response.AuthResponse;
 import com.homeoscribe.service.AuthService;
@@ -51,5 +54,32 @@ public class AuthController {
     @GetMapping("/health")
     public ResponseEntity<ApiResponse<String>> health() {
         return ResponseEntity.ok(ApiResponse.success("System is healthy and active", "OK"));
+    }
+
+    @PostMapping("/forgot-password/send-otp")
+    public ResponseEntity<ApiResponse<Void>> sendForgotPasswordOtp(
+            @Valid @RequestBody SendOtpRequest request) {
+        authService.sendForgotPasswordOtp(request);
+        return ResponseEntity.ok(
+            ApiResponse.success("OTP sent successfully to your registered email address. Enter the OTP to proceed.")
+        );
+    }
+
+    @PostMapping("/forgot-password/verify-otp")
+    public ResponseEntity<ApiResponse<Void>> verifyForgotPasswordOtp(
+            @Valid @RequestBody VerifyOtpRequest request) {
+        authService.verifyForgotPasswordOtp(request);
+        return ResponseEntity.ok(
+            ApiResponse.success("OTP verified successfully. You may now reset your password.")
+        );
+    }
+
+    @PostMapping("/forgot-password/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(
+            ApiResponse.success("Password reset successfully! You can now log in with your new password.")
+        );
     }
 }

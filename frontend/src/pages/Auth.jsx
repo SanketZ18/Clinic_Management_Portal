@@ -23,6 +23,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import toast from 'react-hot-toast';
 
+import api from '../services/api';
 import doctorImg from '../assets/images/image6.jpg';
 
 const Auth = () => {
@@ -30,7 +31,19 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { login, register, isAuthenticated, doctor } = useAuth();
-  const [isLogin, setIsLogin] = useState(searchParams.get('mode') !== 'register');
+  
+  const getModeFromParams = () => {
+    const m = searchParams.get('mode');
+    if (m === 'register') return 'register';
+    if (m === 'forgot') return 'forgot';
+    return 'login';
+  };
+
+  const [authMode, setAuthMode] = useState(getModeFromParams());
+  const isLogin = authMode === 'login';
+  const isRegister = authMode === 'register';
+  const isForgot = authMode === 'forgot';
+
   const [loading, setLoading] = useState(false);
   const [showPaidInfo, setShowPaidInfo] = useState(false);
   const [showPass, setShowPass] = useState(false);
@@ -47,6 +60,14 @@ const Auth = () => {
     password: '',
     confirmPassword: '',
   });
+
+  // Forgot password state
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotForm, setForgotForm] = useState({ email: '', otp: '', newPassword: '', confirmPassword: '' });
+  const [forgotStatusMsg, setForgotStatusMsg] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfNewPass, setShowConfNewPass] = useState(false);
+
   const [validationErrors, setValidationErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
 
@@ -64,7 +85,7 @@ const Auth = () => {
   }, [doctor, isAuthenticated, navigate]);
 
   useEffect(() => {
-    setIsLogin(searchParams.get('mode') !== 'register');
+    setAuthMode(getModeFromParams());
     setValidationErrors({});
     setTouchedFields({});
   }, [searchParams]);
@@ -203,6 +224,84 @@ const Auth = () => {
     }
   };
 
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    const emailToUse = (forgotForm.email || loginForm.email || '').trim();
+    if (!emailToUse || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailToUse)) {
+      toast.error('Please enter a valid registered email address');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/forgot-password/send-otp', { email: emailToUse });
+      const msg = res.data?.message || 'OTP sent successfully. Enter the OTP';
+      setForgotForm((prev) => ({ ...prev, email: emailToUse }));
+      setForgotStatusMsg(msg);
+      setForgotStep(2);
+      toast.success(msg);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send OTP. Please check your email and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!forgotForm.otp || forgotForm.otp.trim().length !== 6) {
+      toast.error('Please enter the 6-digit OTP code');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/forgot-password/verify-otp', {
+        email: forgotForm.email,
+        otp: forgotForm.otp.trim(),
+      });
+      toast.success(res.data?.message || 'OTP verified successfully. You may now reset your password.');
+      setForgotStep(3);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Invalid or expired OTP code');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!forgotForm.newPassword) {
+      toast.error('Please enter your new password');
+      return;
+    }
+    if (forgotForm.newPassword !== forgotForm.confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    if (forgotForm.newPassword.length < 8 || !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/.test(forgotForm.newPassword)) {
+      toast.error('Password must contain uppercase, lowercase letter & number (min 8 chars)');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/forgot-password/reset-password', {
+        email: forgotForm.email,
+        otp: forgotForm.otp.trim(),
+        newPassword: forgotForm.newPassword,
+        confirmPassword: forgotForm.confirmPassword,
+      });
+      toast.success(res.data?.message || 'Password reset successfully! Please log in with your new password.');
+      setLoginForm({ email: forgotForm.email, password: '' });
+      setAuthMode('login');
+      navigate('/auth?mode=login');
+      setForgotStep(1);
+      setForgotForm({ email: '', otp: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const inputStyle = (hasError) => ({
     width: '100%',
     padding: '13px 15px',
@@ -257,55 +356,57 @@ const Auth = () => {
       <Navbar transparent={false} />
 
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1.25rem', paddingTop: 'calc(72px + 2rem)' }}>
-        <div style={{ width: '100%', maxWidth: isLogin ? 980 : 1260 }}>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.9rem', marginBottom: '1.4rem', flexWrap: 'wrap' }}>
-            {[
-              { label: 'Doctor Login', mode: 'login', active: isLogin },
-              { label: 'Doctor Registration', mode: 'register', active: !isLogin },
-            ].map(({ label, mode, active }) => (
-              <button
-                key={mode}
-                onClick={() => navigate(`/auth?mode=${mode}`)}
-                style={{
-                  padding: '10px 24px',
-                  borderRadius: '999px',
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                  border: active ? 'none' : '1px solid rgba(148,163,184,0.28)',
-                  background: active ? 'linear-gradient(135deg, #1d4ed8 0%, #38bdf8 100%)' : 'rgba(255,255,255,0.8)',
-                  color: active ? 'white' : '#475569',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: active ? '0 10px 24px rgba(29,78,216,0.24)' : '0 1px 4px rgba(15,23,42,0.05)',
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        <div style={{ width: '100%', maxWidth: isForgot ? 920 : (isLogin ? 980 : 1260) }}>
+          {!isForgot && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.9rem', marginBottom: '1.4rem', flexWrap: 'wrap' }}>
+              {[
+                { label: 'Doctor Login', mode: 'login', active: isLogin },
+                { label: 'Doctor Registration', mode: 'register', active: isRegister },
+              ].map(({ label, mode, active }) => (
+                <button
+                  key={mode}
+                  onClick={() => navigate(`/auth?mode=${mode}`)}
+                  style={{
+                    padding: '10px 24px',
+                    borderRadius: '999px',
+                    fontWeight: 700,
+                    fontSize: '0.92rem',
+                    border: active ? 'none' : '1px solid rgba(148,163,184,0.28)',
+                    background: active ? 'linear-gradient(135deg, #1d4ed8 0%, #38bdf8 100%)' : 'rgba(255,255,255,0.8)',
+                    color: active ? 'white' : '#475569',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: active ? '0 10px 24px rgba(29,78,216,0.24)' : '0 1px 4px rgba(15,23,42,0.05)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <motion.div
-            key={isLogin ? 'login-card' : 'register-card'}
+            key={authMode + (isForgot ? `-step${forgotStep}` : '')}
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
             style={{
               background: 'rgba(255,255,255,0.88)',
-              borderRadius: isLogin ? '26px' : '30px',
+              borderRadius: '26px',
               boxShadow: '0 24px 80px rgba(15, 23, 42, 0.12)',
               overflow: 'hidden',
               display: 'flex',
-              flexWrap: isLogin ? 'wrap' : 'nowrap',
+              flexWrap: isRegister ? 'nowrap' : 'wrap',
               border: '1px solid rgba(148,163,184,0.18)',
               backdropFilter: 'blur(18px)',
-              maxWidth: isLogin ? 920 : 1240,
+              maxWidth: isRegister ? 1240 : 920,
               margin: '0 auto',
             }}
           >
             <div
               style={{
-                flex: isLogin ? '0 0 340px' : '0 0 350px',
-                minHeight: isLogin ? 430 : 560,
+                flex: isRegister ? '0 0 350px' : '0 0 340px',
+                minHeight: isRegister ? 560 : 430,
                 position: 'relative',
                 overflow: 'hidden',
                 background: 'linear-gradient(180deg, #0f172a 0%, #1d4ed8 55%, #0ea5e9 100%)',
@@ -327,14 +428,41 @@ const Auth = () => {
                     {platformName}
                   </span>
                 </div>
-                <h2 style={{ color: 'white', fontFamily: 'var(--font-heading)', fontSize: isLogin ? 'clamp(1.15rem, 1.7vw, 1.45rem)' : 'clamp(1.25rem, 2vw, 1.7rem)', lineHeight: 1.25, fontWeight: 800, margin: 0 }}>
-                  {isLogin
+                <h2 style={{ color: 'white', fontFamily: 'var(--font-heading)', fontSize: 'clamp(1.15rem, 1.7vw, 1.45rem)', lineHeight: 1.25, fontWeight: 800, margin: 0 }}>
+                  {isForgot
+                    ? 'Reset your password securely in just a few steps.'
+                    : isLogin
                     ? 'Protect your practice with cleaner records and faster follow-ups.'
                     : 'Join a brighter digital workflow for your clinic today.'}
                 </h2>
               </div>
 
-              {isLogin ? (
+              {isForgot ? (
+                <div style={{ position: 'absolute', bottom: 20, left: 16, right: 16, zIndex: 2, display: 'grid', gap: 8 }}>
+                  {[
+                    { icon: CheckCircle, text: `Step 1: Enter your registered email` },
+                    { icon: CheckCircle, text: `Step 2: Verify the 6-digit OTP` },
+                    { icon: CheckCircle, text: `Step 3: Set your new password` },
+                  ].map(({ icon: Icon, text }, idx) => (
+                    <div
+                      key={text}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        background: forgotStep > idx ? 'rgba(34,197,94,0.18)' : 'rgba(255,255,255,0.12)',
+                        backdropFilter: 'blur(10px)',
+                        borderRadius: '12px',
+                        padding: '10px 12px',
+                        border: forgotStep === idx + 1 ? '1px solid rgba(255,255,255,0.45)' : '1px solid rgba(255,255,255,0.2)',
+                      }}
+                    >
+                      <Icon size={13} color={forgotStep > idx ? '#86efac' : '#bfdbfe'} />
+                      <span style={{ color: 'rgba(255,255,255,0.96)', fontSize: '0.8rem', fontWeight: forgotStep === idx + 1 ? 700 : 600 }}>{text}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : isLogin ? (
                 <div style={{ position: 'absolute', bottom: 22, left: 18, right: 18, zIndex: 2 }}>
                   <div
                     style={{
@@ -382,15 +510,221 @@ const Auth = () => {
               )}
             </div>
 
-            <div style={{ flex: isLogin ? '1 1 420px' : '1 1 890px', padding: isLogin ? '2.1rem 2.2rem' : '1.7rem 1.8rem', background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)' }}>
-              <h3 style={{ color: '#0f172a', fontFamily: 'var(--font-heading)', fontSize: isLogin ? '1.4rem' : '1.55rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                {isLogin ? 'Welcome back' : 'Create your doctor account'}
+            <div style={{ flex: isRegister ? '1 1 890px' : '1 1 420px', padding: isRegister ? '1.7rem 1.8rem' : '2.1rem 2.2rem', background: 'linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)' }}>
+              <h3 style={{ color: '#0f172a', fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.35rem' }}>
+                {isForgot
+                  ? (forgotStep === 1 ? 'Forgot your password?' : forgotStep === 2 ? 'Verify your identity' : 'Set a new password')
+                  : isLogin ? 'Welcome back' : 'Create your doctor account'}
               </h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: isLogin ? '1.25rem' : '1rem' }}>
-                {isLogin ? `Sign in to ${platformName}.` : 'Fill in the details below to set up your clinic profile.'}
+              <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+                {isForgot
+                  ? (forgotStep === 1
+                      ? 'Enter your registered email address. We will send a 6-digit OTP to reset your password.'
+                      : forgotStep === 2
+                      ? `OTP sent to ${forgotForm.email}. Enter the 6-digit code below.`
+                      : 'OTP verified! Enter and confirm your new password.')
+                  : isLogin ? `Sign in to ${platformName}.` : 'Fill in the details below to set up your clinic profile.'}
               </p>
 
-              {isLogin ? (
+              {isForgot ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: 380 }}>
+                  {/* STATUS BANNER - shown after OTP sent */}
+                  {forgotStep >= 2 && forgotStatusMsg && (
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)', border: '1px solid #86efac', borderRadius: '12px', padding: '12px 14px' }}>
+                      <CheckCircle size={15} color="#16a34a" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 600, lineHeight: 1.4 }}>{forgotStatusMsg}</span>
+                    </div>
+                  )}
+
+                  {/* STEP 1 — Email input */}
+                  {forgotStep === 1 && (
+                    <form onSubmit={handleSendOtp} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div>
+                        <label style={labelStyle}>Registered Email Address</label>
+                        <div style={{ position: 'relative' }}>
+                          <Mail size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                          <input
+                            type="email"
+                            value={forgotForm.email}
+                            onChange={(e) => setForgotForm((p) => ({ ...p, email: e.target.value }))}
+                            style={{ ...inputStyle(false), paddingLeft: 36 }}
+                            placeholder="Enter your registered email"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '14px',
+                          border: 'none',
+                          cursor: loading ? 'not-allowed' : 'pointer',
+                          background: 'linear-gradient(135deg, #1d4ed8, #38bdf8)',
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: '0.95rem',
+                          boxShadow: '0 10px 24px rgba(29,78,216,0.28)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          opacity: loading ? 0.7 : 1,
+                        }}
+                      >
+                        {loading ? 'Sending OTP...' : (<><ArrowRight size={16} /> Send OTP</>)}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => navigate('/auth?mode=login')}
+                        style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.82rem', cursor: 'pointer', textAlign: 'center', padding: 0 }}
+                      >
+                        ← Back to Login
+                      </button>
+                    </form>
+                  )}
+
+                  {/* STEP 2 — OTP verification */}
+                  {forgotStep === 2 && (
+                    <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div>
+                        <label style={labelStyle}>6-Digit OTP Code</label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={6}
+                          value={forgotForm.otp}
+                          onChange={(e) => setForgotForm((p) => ({ ...p, otp: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
+                          style={{
+                            ...inputStyle(false),
+                            letterSpacing: '10px',
+                            fontSize: '1.6rem',
+                            fontWeight: 800,
+                            textAlign: 'center',
+                            fontFamily: 'monospace',
+                          }}
+                          placeholder="——————"
+                          required
+                        />
+                        <p style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: 6, textAlign: 'center' }}>OTP is valid for 10 minutes. Check your inbox.</p>
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={loading || forgotForm.otp.length !== 6}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '14px',
+                          border: 'none',
+                          cursor: (loading || forgotForm.otp.length !== 6) ? 'not-allowed' : 'pointer',
+                          background: 'linear-gradient(135deg, #1d4ed8, #38bdf8)',
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: '0.95rem',
+                          boxShadow: '0 10px 24px rgba(29,78,216,0.28)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          opacity: (loading || forgotForm.otp.length !== 6) ? 0.6 : 1,
+                        }}
+                      >
+                        {loading ? 'Verifying OTP...' : (<><CheckCircle size={16} /> Verify OTP</>)}
+                      </button>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => { setForgotStep(1); setForgotForm((p) => ({ ...p, otp: '' })); }}
+                          style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}
+                        >
+                          ← Change Email
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={loading}
+                          style={{ background: 'none', border: 'none', color: '#1d4ed8', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                        >
+                          Resend OTP
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {/* STEP 3 — New password */}
+                  {forgotStep === 3 && (
+                    <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div>
+                        <label style={labelStyle}>New Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <Lock size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                          <input
+                            type={showNewPass ? 'text' : 'password'}
+                            value={forgotForm.newPassword}
+                            onChange={(e) => setForgotForm((p) => ({ ...p, newPassword: e.target.value }))}
+                            style={{ ...inputStyle(false), paddingLeft: 36, paddingRight: 36 }}
+                            placeholder="Enter new password (min 8 chars)"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPass(!showNewPass)}
+                            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
+                          >
+                            {showNewPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Confirm New Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <Lock size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                          <input
+                            type={showConfNewPass ? 'text' : 'password'}
+                            value={forgotForm.confirmPassword}
+                            onChange={(e) => setForgotForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                            style={{ ...inputStyle(!!(forgotForm.confirmPassword && forgotForm.newPassword !== forgotForm.confirmPassword)), paddingLeft: 36, paddingRight: 36 }}
+                            placeholder="Re-enter new password"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfNewPass(!showConfNewPass)}
+                            style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
+                          >
+                            {showConfNewPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                          </button>
+                        </div>
+                        {forgotForm.confirmPassword && forgotForm.newPassword !== forgotForm.confirmPassword && (
+                          <div style={errorStyle}><AlertCircle size={10} /> Passwords do not match</div>
+                        )}
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '14px',
+                          border: 'none',
+                          cursor: loading ? 'not-allowed' : 'pointer',
+                          background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: '0.95rem',
+                          boxShadow: '0 10px 24px rgba(22,163,74,0.28)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 8,
+                          opacity: loading ? 0.7 : 1,
+                        }}
+                      >
+                        {loading ? 'Resetting...' : (<><CheckCircle size={16} /> Reset Password</>)}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              ) : isLogin ? (
                 <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem', maxWidth: 380 }}>
                   <div>
                     <label style={labelStyle}>Email Address</label>
@@ -427,6 +761,29 @@ const Auth = () => {
                         style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
                       >
                         {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotForm((prev) => ({ ...prev, email: loginForm.email || prev.email }));
+                          setAuthMode('forgot');
+                          setForgotStep(1);
+                          navigate('/auth?mode=forgot');
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#1d4ed8',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          padding: 0,
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        Forgot Password?
                       </button>
                     </div>
                   </div>

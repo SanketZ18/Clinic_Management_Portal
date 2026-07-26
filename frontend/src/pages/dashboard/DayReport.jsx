@@ -23,6 +23,7 @@ import {
   formatMedicineNamesSummary,
   getTodayPatientsForDoctor,
   buildDailyReportPdf,
+  buildPatientHistoryPdf,
   savePdf,
   removeTodayPatientForDoctor,
   clearTodayPatientsForDoctor,
@@ -74,245 +75,7 @@ const FILTER_PRESETS = [
   { id: 'custom', label: 'Custom Range' },
 ];
 
-// ── Patient History PDF Builder ───────────────────────────────────────────────
 
-const buildPatientHistoryPdf = (doctor, historyData) => {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pw = doc.internal.pageSize.getWidth();
-  const margin = 14;
-  const contentWidth = pw - margin * 2;
-  let y = margin;
-
-  const COLORS = {
-    primary: [15, 46, 91],
-    primaryDark: [10, 28, 64],
-    primaryLight: [235, 243, 255],
-    accent: [246, 160, 35],
-    line: [203, 213, 225],
-    text: [15, 23, 42],
-    muted: [100, 116, 139],
-    white: [255, 255, 255],
-    rowAlt: [248, 250, 252],
-  };
-
-  const text = (v, fallback = 'N/A') => {
-    if (v === null || v === undefined) return fallback;
-    const s = String(v).trim();
-    return s || fallback;
-  };
-
-  const checkPage = (needed = 10) => {
-    if (y + needed > doc.internal.pageSize.getHeight() - 20) {
-      doc.addPage();
-      y = margin;
-      drawHeader();
-    }
-  };
-
-  const drawHeader = () => {
-    // Clinic name block
-    doc.setFillColor(...COLORS.primary);
-    doc.roundedRect(margin, y, 18, 18, 3, 3, 'F');
-    doc.setFillColor(...COLORS.white);
-    doc.rect(margin + 7.5, y + 3.5, 3, 11, 'F');
-    doc.rect(margin + 3.5, y + 7.5, 11, 3, 'F');
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(...COLORS.primary);
-    doc.text(text(doctor?.clinicName, 'Clinic'), margin + 21, y + 6);
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.setTextColor(...COLORS.text);
-    doc.text(text(doctor?.fullName, 'Doctor'), margin + 21, y + 11);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.2);
-    doc.setTextColor(...COLORS.muted);
-    doc.text(`${text(doctor?.qualification)} | Reg: ${text(doctor?.licenseNumber)}`, margin + 21, y + 15.2);
-    doc.text(text(doctor?.clinicAddress, ''), margin + 21, y + 18.5);
-
-    // Report badge
-    doc.setFillColor(...COLORS.primaryDark);
-    doc.roundedRect(pw - margin - 54, y, 54, 20, 4, 4, 'F');
-    doc.setFillColor(...COLORS.accent);
-    doc.roundedRect(pw - margin - 50, y + 3, 22, 5, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(7);
-    doc.setTextColor(...COLORS.white);
-    doc.text('PATIENT HISTORY', pw - margin - 39, y + 6.8, { align: 'center' });
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
-    doc.text(text(historyData.patientName), pw - margin - 2, y + 13, { align: 'right' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.8);
-    doc.text(`Total Visits: ${historyData.totalVisits}`, pw - margin - 2, y + 17.5, { align: 'right' });
-
-    doc.setDrawColor(...COLORS.primary);
-    doc.setLineWidth(0.4);
-    doc.line(margin, y + 22, pw - margin, y + 22);
-    y += 27;
-  };
-
-  // --- First page header ---
-  drawHeader();
-
-  // --- Patient demographic band ---
-  const bandHeight = 30;
-  doc.setFillColor(...COLORS.primaryLight);
-  doc.setDrawColor(...COLORS.line);
-  doc.roundedRect(margin, y, contentWidth, bandHeight, 3, 3, 'FD');
-
-  // Column split: left half and right half
-  const halfW = contentWidth / 2;
-  const lx = margin + 5;        // left column label x
-  const lv = margin + 32;       // left column value x
-  const rx = margin + halfW + 5;  // right column label x
-  const rv = margin + halfW + 28; // right column value x
-  const rowH = 6.5;
-
-  // Labels (bold, muted)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.8);
-  doc.setTextColor(...COLORS.muted);
-  doc.text('Name:',       lx, y + rowH);
-  doc.text('Age/Gender:', lx, y + rowH * 2);
-  doc.text('Blood Group:',lx, y + rowH * 3);
-  doc.text('Phone:',      lx, y + rowH * 4);
-  doc.text('Email:',      rx, y + rowH);
-  doc.text('Address:',    rx, y + rowH * 2);
-
-  // Values (normal, text colour)
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...COLORS.text);
-  doc.text(text(historyData.patientName),                    lv, y + rowH);
-  doc.text(`${text(historyData.age)} yrs / ${text(historyData.gender)}`, lv, y + rowH * 2);
-  doc.text(text(historyData.bloodGroup),                     lv, y + rowH * 3);
-  doc.text(text(historyData.phone),                          lv, y + rowH * 4);
-  doc.text(text(historyData.email),                          rv, y + rowH);
-  const addrLines = doc.splitTextToSize(text(historyData.address, '—'), halfW - rv + margin + halfW - 6);
-  doc.text(addrLines,                                        rv, y + rowH * 2);
-
-  y += bandHeight + 5;
-
-  // --- Visits ---
-  const visits = historyData.prescriptions || [];
-  visits.forEach((visit, idx) => {
-    checkPage(50);
-
-    // Visit header bar
-    doc.setFillColor(...COLORS.primaryDark);
-    doc.roundedRect(margin, y, contentWidth, 9, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...COLORS.white);
-    const visitDateStr = visit.visitDate
-      ? new Date(visit.visitDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
-      : 'N/A';
-    doc.text(`VISIT ${idx + 1}  —  ${visitDateStr}  (${text(visit.visitType, 'Consultation')})`, margin + 3, y + 6);
-    y += 12;
-
-    // Clinical details
-    const clinicalRows = [
-      ['Chief Complaint', visit.chiefComplaint],
-      ['Diagnosis', visit.diagnosis],
-      ['Doctor Notes', visit.doctorNotes],
-    ].filter(([, v]) => v && v.trim());
-
-    clinicalRows.forEach(([label, value]) => {
-      checkPage(8);
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.muted);
-      doc.text(`${label}:`, margin + 2, y);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(...COLORS.text);
-      const lines = doc.splitTextToSize(text(value), contentWidth - 35);
-      doc.text(lines, margin + 30, y);
-      y += Math.max(5.5, lines.length * 4.5);
-    });
-
-    y += 2;
-
-    // Remedies table
-    if (visit.remedies && visit.remedies.length > 0) {
-      checkPage(30);
-      const colWidths = [10, contentWidth * 0.35, contentWidth * 0.18, contentWidth * 0.18, contentWidth * 0.22];
-      const colX = [margin, margin + colWidths[0], margin + colWidths[0] + colWidths[1],
-        margin + colWidths[0] + colWidths[1] + colWidths[2],
-        margin + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3]];
-      const headers = ['#', 'Remedy Name', 'Potency', 'Dose', 'Instructions'];
-
-      // Table header
-      doc.setFillColor(...COLORS.accent);
-      doc.rect(margin, y, contentWidth, 7, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.white);
-      headers.forEach((h, i) => doc.text(h, colX[i] + 2, y + 4.8));
-      y += 7;
-
-      // Table rows
-      visit.remedies.forEach((remedy, rIdx) => {
-        checkPage(8);
-        if (rIdx % 2 === 1) { doc.setFillColor(...COLORS.rowAlt); doc.rect(margin, y, contentWidth, 7, 'F'); }
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.text);
-        const rowData = [String(rIdx + 1), text(remedy.remedyName), text(remedy.potency), text(remedy.dose), text(remedy.frequency)];
-        rowData.forEach((cell, i) => {
-          const cellLines = doc.splitTextToSize(cell, colWidths[i] - 4);
-          doc.text(cellLines, colX[i] + 2, y + 4.8);
-        });
-        doc.setDrawColor(...COLORS.line); doc.setLineWidth(0.1);
-        doc.line(margin, y + 7, margin + contentWidth, y + 7);
-        y += 7;
-      });
-    }
-
-    // Follow-up
-    checkPage(10);
-    y += 3;
-    doc.setFillColor(...COLORS.primaryLight);
-    doc.roundedRect(margin, y, contentWidth, 7, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.primaryDark);
-    const followUpText = visit.nextVisitDate
-      ? `Next Visit: ${visit.nextVisitDate}  |  Follow-up: ${text(visit.followUpDays)} days`
-      : `Follow-up: ${text(visit.followUpDays)} days`;
-    doc.text(followUpText, margin + 4, y + 4.8);
-    y += 10;
-
-    // Separator between visits
-    if (idx < visits.length - 1) {
-      checkPage(8);
-      doc.setDrawColor(...COLORS.line); doc.setLineWidth(0.4);
-      doc.setLineDashPattern([2, 2], 0);
-      doc.line(margin, y, margin + contentWidth, y);
-      doc.setLineDashPattern([], 0);
-      y += 8;
-    }
-  });
-
-  // Signature
-  checkPage(30);
-  y += 10;
-  doc.setDrawColor(...COLORS.line); doc.line(margin, y, margin + contentWidth, y);
-  y += 5;
-  doc.setFont('helvetica', 'italic'); doc.setFontSize(7); doc.setTextColor(...COLORS.muted);
-  doc.text('* This patient history report is generated by the clinic management system and is confidential.', margin, y);
-
-  const sigX = pw - margin - 55;
-  const sigY = y - 20;
-  if (doctor?.signatureBase64) {
-    try {
-      const fmt = doctor.signatureBase64.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG';
-      doc.addImage(doctor.signatureBase64, fmt, sigX, sigY, 48, 16, undefined, 'FAST');
-    } catch (_) { /* ignore signature render errors */ }
-  }
-  doc.setDrawColor(...COLORS.primaryDark); doc.line(sigX, sigY + 18, sigX + 48, sigY + 18);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(...COLORS.text);
-  doc.text(text(doctor?.fullName, 'Doctor'), sigX + 24, sigY + 22, { align: 'center' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5); doc.setTextColor(...COLORS.muted);
-  doc.text('Authorized Signature', sigX + 24, sigY + 26, { align: 'center' });
-
-  const patientSafe = text(historyData.patientName, 'patient').toLowerCase().replace(/[^a-z0-9]+/g, '_');
-  const phoneSafe = text(historyData.phone, '').replace(/\D/g, '');
-  const filename = `Patient_${patientSafe}_${phoneSafe}_History.pdf`;
-
-  return { doc, filename };
-};
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -336,6 +99,7 @@ const DayReport = () => {
   const [historyName, setHistoryName] = useState('');
   const [historyPhone, setHistoryPhone] = useState('');
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [rowLoadingId, setRowLoadingId] = useState(null);
 
   // Live search query state
   const [searchQuery, setSearchQuery] = useState('');
@@ -556,6 +320,35 @@ const DayReport = () => {
       toast.error(err?.response?.data?.message || 'No history found for this patient');
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const handleRowFollowUp = async (patientRecord) => {
+    const name = patientRecord.patientName;
+    const phone = patientRecord.phone;
+
+    if (!name || !phone || phone === 'N/A' || phone === '-') {
+      toast.error(`Mobile number or patient name missing for ${name || 'patient'}. Cannot fetch complete history.`);
+      return;
+    }
+
+    const rowId = patientRecord.id || `${name}_${phone}`;
+    setRowLoadingId(rowId);
+
+    try {
+      const historyData = await getPatientHistory({ patientName: name.trim(), phone: phone.trim() });
+      if (!historyData || !historyData.prescriptions || historyData.prescriptions.length === 0) {
+        toast.error(`No visit history found for patient ${name}`);
+        return;
+      }
+      const { doc, filename } = buildPatientHistoryPdf(doctor, historyData);
+      savePdf(doc, filename);
+      toast.success(`Follow-up history PDF downloaded for ${name} (${historyData.totalVisits} visit${historyData.totalVisits !== 1 ? 's' : ''})`);
+    } catch (err) {
+      console.error('Row follow-up history PDF error:', err);
+      toast.error(err?.response?.data?.message || `Failed to fetch history PDF for ${name}`);
+    } finally {
+      setRowLoadingId(null);
     }
   };
 
@@ -817,24 +610,52 @@ const DayReport = () => {
                       <td style={{ padding: '10px', fontSize: '0.85rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {p.createdAt ? new Date(p.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
-                      <td style={{ padding: '10px', textAlign: 'center' }}>
-                        <button
-                          onClick={() => handleDeleteIndividual(p)}
-                          style={{
-                            background: '#fee2e2',
-                            border: '1px solid #fca5a5',
-                            color: '#dc2626',
-                            borderRadius: '6px',
-                            padding: '4px 8px',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title={`Permanently delete ${p.patientName} from database`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <td style={{ padding: '10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          <button
+                            onClick={() => handleRowFollowUp(p)}
+                            disabled={rowLoadingId === (p.id || `${p.patientName}_${p.phone}`)}
+                            style={{
+                              background: '#eff6ff',
+                              border: '1px solid #bfdbfe',
+                              color: '#1d4ed8',
+                              borderRadius: '6px',
+                              padding: '5px 10px',
+                              cursor: rowLoadingId === (p.id || `${p.patientName}_${p.phone}`) ? 'not-allowed' : 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              transition: 'all 0.2s',
+                            }}
+                            title={`Generate and download entire visit history PDF for ${p.patientName}`}
+                          >
+                            {rowLoadingId === (p.id || `${p.patientName}_${p.phone}`) ? (
+                              <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                            ) : (
+                              <FileText size={13} />
+                            )}
+                            Follow Up
+                          </button>
+                          <button
+                            onClick={() => handleDeleteIndividual(p)}
+                            style={{
+                              background: '#fee2e2',
+                              border: '1px solid #fca5a5',
+                              color: '#dc2626',
+                              borderRadius: '6px',
+                              padding: '5px 8px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                            title={`Permanently delete ${p.patientName} from database`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

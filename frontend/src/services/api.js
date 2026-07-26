@@ -10,6 +10,9 @@ const PUBLIC_AUTH_PATHS = new Set([
   '/auth/login',
   '/auth/health',
   '/auth/logout',
+  '/auth/forgot-password/send-otp',
+  '/auth/forgot-password/verify-otp',
+  '/auth/forgot-password/reset-password',
   '/contact',
 ]);
 

@@ -5,6 +5,8 @@ import {
   ArrowRight,
   ClipboardList,
   Download,
+  FileText,
+  Loader2,
   RefreshCw,
   Search,
   Trash2,
@@ -12,12 +14,14 @@ import {
 import toast from 'react-hot-toast';
 import {
   buildDailyReportPdf,
+  buildPatientHistoryPdf,
   clearTodayPatientsForDoctor,
   formatMedicineNamesSummary,
   getTodayPatientsForDoctor,
   removeTodayPatientForDoctor,
   savePdf,
 } from '../../utils/clinicDocuments';
+import { getPatientHistory } from '../../services/patientApi';
 
 const emptyStats = {
   total: 0,
@@ -40,6 +44,7 @@ const PatientLog = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [stats, setStats] = useState(emptyStats);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [rowLoadingId, setRowLoadingId] = useState(null);
 
   const loadPatients = () => {
     const todayPatients = getTodayPatientsForDoctor(doctor).slice().reverse();
@@ -128,6 +133,35 @@ const PatientLog = () => {
 
     savePdf(doc, filename);
     toast.success('Day report downloaded');
+  };
+
+  const handleRowFollowUp = async (patientRecord) => {
+    const name = patientRecord.patientName;
+    const phone = patientRecord.phone;
+
+    if (!name || !phone || phone === 'N/A' || phone === '-') {
+      toast.error(`Mobile number or patient name missing for ${name || 'patient'}. Cannot fetch complete history.`);
+      return;
+    }
+
+    const rowId = patientRecord.id || `${name}_${phone}`;
+    setRowLoadingId(rowId);
+
+    try {
+      const historyData = await getPatientHistory({ patientName: name.trim(), phone: phone.trim() });
+      if (!historyData || !historyData.prescriptions || historyData.prescriptions.length === 0) {
+        toast.error(`No visit history found for patient ${name}`);
+        return;
+      }
+      const { doc, filename } = buildPatientHistoryPdf(doctor, historyData);
+      savePdf(doc, filename);
+      toast.success(`Follow-up history PDF downloaded for ${name} (${historyData.totalVisits} visit${historyData.totalVisits !== 1 ? 's' : ''})`);
+    } catch (err) {
+      console.error('Row follow-up history PDF error:', err);
+      toast.error(err?.response?.data?.message || `Failed to fetch history PDF for ${name}`);
+    } finally {
+      setRowLoadingId(null);
+    }
   };
 
   return (
@@ -267,14 +301,52 @@ const PatientLog = () => {
                       {patient.medicineNames || formatMedicineNamesSummary(patient.remedies) || patient.medicines || patient.remedy || '-'}
                     </td>
                     <td>{patient.nextVisitDate || patient.followUp || '-'}</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        onClick={() => deletePatient(patient.id)}
-                        style={{ background: 'none', border: 'none', color: 'var(--error)' }}
-                        title="Remove patient log"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                        <button
+                          onClick={() => handleRowFollowUp(patient)}
+                          disabled={rowLoadingId === (patient.id || `${patient.patientName}_${patient.phone}`)}
+                          style={{
+                            background: '#eff6ff',
+                            border: '1px solid #bfdbfe',
+                            color: '#1d4ed8',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            cursor: rowLoadingId === (patient.id || `${patient.patientName}_${patient.phone}`) ? 'not-allowed' : 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: '0.78rem',
+                            fontWeight: 600,
+                            transition: 'all 0.2s',
+                          }}
+                          title={`Generate and download entire visit history PDF for ${patient.patientName}`}
+                        >
+                          {rowLoadingId === (patient.id || `${patient.patientName}_${patient.phone}`) ? (
+                            <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                          ) : (
+                            <FileText size={13} />
+                          )}
+                          Follow Up
+                        </button>
+                        <button
+                          onClick={() => deletePatient(patient.id)}
+                          style={{
+                            background: '#fee2e2',
+                            border: '1px solid #fca5a5',
+                            color: '#dc2626',
+                            borderRadius: '6px',
+                            padding: '4px 8px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title="Remove patient log"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

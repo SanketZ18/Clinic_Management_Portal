@@ -46,22 +46,33 @@ public class EmailService {
     private final RestTemplate restTemplate = new RestTemplate();
 
     public void sendOtpEmail(String toEmail, String otp, String doctorName) {
-        // Priority 1: JavaMailSender (Gmail / Custom SMTP using environment variables)
-        if (javaMailSender != null && smtpUsername != null && !smtpUsername.isBlank() && smtpPassword != null && !smtpPassword.isBlank()) {
-            sendViaSmtp(toEmail, otp, doctorName);
-            return;
-        }
-
-        // Priority 2: Resend HTTP API (if RESEND_API_KEY is set)
+        // Priority 1: Resend HTTP API (Recommended for cloud hosting like Render/AWS as HTTPS port 443 is never blocked)
         if (resendApiKey != null && !resendApiKey.isBlank()) {
-            sendViaResendApi(toEmail, otp, doctorName);
-            return;
+            try {
+                sendViaResendApi(toEmail, otp, doctorName);
+                return;
+            } catch (Exception e) {
+                log.warn("Resend API delivery attempt failed: {}. Checking SMTP fallback...", e.getMessage());
+            }
         }
 
-        // If neither is configured, raise a clear error informing what environment variables are needed
+        // Priority 2: JavaMailSender (Gmail / Custom SMTP)
+        if (javaMailSender != null && smtpUsername != null && !smtpUsername.isBlank() && smtpPassword != null && !smtpPassword.isBlank()) {
+            try {
+                sendViaSmtp(toEmail, otp, doctorName);
+                return;
+            } catch (Exception e) {
+                log.error("SMTP delivery failed: {}", e.getMessage());
+                throw new ValidationException(
+                    "SMTP email delivery failed (" + e.getMessage() + "). Note: Cloud hosts (Render/AWS) block SMTP port 587. Please add RESEND_API_KEY to your environment variables."
+                );
+            }
+        }
+
+        // If neither is configured, raise a clear error
         log.error("Email service error: Missing email credentials in environment variables.");
         throw new ValidationException(
-            "Email credentials are missing. Please set SPRING_MAIL_USERNAME and SPRING_MAIL_PASSWORD (or RESEND_API_KEY) in environment variables."
+            "Email credentials missing. Please configure RESEND_API_KEY or SPRING_MAIL_USERNAME & SPRING_MAIL_PASSWORD in environment variables."
         );
     }
 

@@ -250,6 +250,42 @@ public class PatientService {
         return scopedIdsToDelete.size();
     }
 
+    // ── Plan Expiry Purge ───────────────────────────────────────────────────────
+
+    /**
+     * Purge ALL patient data associated with a specific doctor after their subscription plan ends.
+     * This removes:
+     *   1. All Patient documents (prescriptions, demographics) linked to this doctor.
+     *   2. The DoctorPatientMap entry so the doctor starts fresh upon plan renewal.
+     *
+     * Called by the nightly SubscriptionCleanupService when a doctor's subscriptionExpiry is in the past.
+     *
+     * @param doctorId the UUID of the doctor whose data should be purged
+     * @return number of patient records deleted
+     */
+    public int purgePatientDataForDoctor(String doctorId) {
+        Optional<DoctorPatientMap> mapOpt = doctorPatientMapRepository.findByDoctorId(doctorId);
+        if (mapOpt.isEmpty() || mapOpt.get().getPatientIds().isEmpty()) {
+            // No patient records to purge — delete map entry if it exists
+            mapOpt.ifPresent(doctorPatientMapRepository::delete);
+            log.info("[Cleanup] No patient records found for expired doctor {}. Map entry cleared.", doctorId);
+            return 0;
+        }
+
+        DoctorPatientMap map = mapOpt.get();
+        List<String> patientIds = new ArrayList<>(map.getPatientIds());
+
+        // Delete all patient documents belonging to this doctor
+        List<Patient> patientsToDelete = patientRepository.findByPatientIdIn(patientIds);
+        patientRepository.deleteAll(patientsToDelete);
+
+        // Delete the mapping document entirely so doctor gets a clean slate on renewal
+        doctorPatientMapRepository.delete(map);
+
+        log.info("[Cleanup] Purged {} patient record(s) for expired doctor {}.", patientsToDelete.size(), doctorId);
+        return patientsToDelete.size();
+    }
+
     // ── Private Helpers ────────────────────────────────────────────────────────
 
     private PrescriptionEntry buildPrescriptionEntry(SavePatientPrescriptionRequest request) {

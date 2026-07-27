@@ -25,6 +25,7 @@ D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\repository\DoctorPatientMapRepository.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\model\RemedyEntry.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\JwtService.java
+D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\SubscriptionCleanupService.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\SearchService.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\model\Patient.java
 D:\Freelancing\Project 2\Clinic Management\backend\src\main\java\com\homeoscribe\service\DoctorService.java

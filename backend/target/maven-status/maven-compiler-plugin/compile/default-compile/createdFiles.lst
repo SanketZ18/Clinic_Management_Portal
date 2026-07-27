@@ -58,6 +58,7 @@ com\homeoscribe\config\StartupLogger.class
 com\homeoscribe\dto\request\RegisterRequest.class
 com\homeoscribe\model\Patient$PatientBuilder.class
 com\homeoscribe\dto\response\AuthResponse.class
+com\homeoscribe\service\SubscriptionCleanupService.class
 com\homeoscribe\filter\JwtAuthFilter.class
 com\homeoscribe\repository\PatientRepository.class
 com\homeoscribe\dto\request\SavePatientPrescriptionRequest.class

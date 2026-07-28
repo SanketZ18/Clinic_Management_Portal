@@ -168,10 +168,16 @@ const DayReport = () => {
               gender: patient.gender,
               bloodGroup: patient.bloodGroup || 'N/A',
               phone: patient.phone,
+              referredBy: patient.referredBy || '-',
               chiefComplaint: rx.chiefComplaint || 'N/A',
               remedies: rx.remedies || [],
               medicineNames: (rx.remedies || []).map((r) => r.remedyName).filter(Boolean).join('\n') || 'N/A',
-              followUp: rx.nextVisitDate ? new Date(rx.nextVisitDate).toLocaleDateString('en-IN') : `${rx.followUpDays || '—'} days`,
+              nextVisitDate: rx.nextVisitDate
+                ? new Date(rx.nextVisitDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : null,
+              followUp: rx.nextVisitDate
+                ? new Date(rx.nextVisitDate).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : `${rx.followUpDays || '—'} days`,
               createdAt: rx.visitDate,
               diagnosis: rx.diagnosis,
               visitType: rx.visitType,

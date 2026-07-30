@@ -12,6 +12,8 @@ import org.springframework.web.client.RestTemplate;
 
 import jakarta.mail.internet.MimeMessage;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * EmailService — supports:
@@ -118,14 +120,27 @@ public class EmailService {
         } catch (ValidationException ve) {
             throw ve;
         } catch (org.springframework.web.client.HttpStatusCodeException httpEx) {
-            log.error("Brevo API HTTP Error [{}] body: {}", httpEx.getStatusCode(), httpEx.getResponseBodyAsString());
+            String responseBody = httpEx.getResponseBodyAsString();
+            log.error("Brevo API HTTP Error [{}] body: {}", httpEx.getStatusCode(), responseBody);
             throw new ValidationException(
-                "Brevo email delivery failed. Verify BREVO_API_KEY and MAIL_FROM_EMAIL in Render."
+                "Brevo rejected the email (" + httpEx.getStatusCode().value() + "): "
+                    + extractBrevoMessage(responseBody)
             );
         } catch (Exception e) {
             log.error("Failed to send OTP email to {} via Brevo API: {}", toEmail, e.getMessage(), e);
             throw new ValidationException("Failed to send email through Brevo. Please try again later.");
         }
+    }
+
+    private String extractBrevoMessage(String responseBody) {
+        if (responseBody == null || responseBody.isBlank()) {
+            return "empty response from Brevo";
+        }
+        Matcher matcher = Pattern.compile("\\\"message\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"").matcher(responseBody);
+        if (matcher.find()) {
+            return matcher.group(1);
+        }
+        return responseBody.length() > 240 ? responseBody.substring(0, 240) : responseBody;
     }
 
     private void sendViaResendApi(String toEmail, String otp, String doctorName) {

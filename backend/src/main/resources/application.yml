@@ -51,15 +51,17 @@ jwt:
   secret: ${JWT_SECRET:homeoscribe-super-secret-key-2024-production-clinic-management-platform}
   access-token-expiration: 604800000    # 7 days in ms
 
-# Resend Email API — uses HTTPS (port 443), works on all cloud platforms including Render free tier
-# SMTP is blocked by Render. This API-based approach is the correct solution.
+# HTTP email APIs use HTTPS (port 443), which works on cloud platforms including Render.
 resend:
   api-key: ${RESEND_API_KEY:}
+
+brevo:
+  api-key: ${BREVO_API_KEY:}
 
 # App-level mail display settings
 app:
   mail:
-    from-email: ${MAIL_FROM_EMAIL:onboarding@resend.dev}
+    from-email: ${MAIL_FROM_EMAIL:}
     from-name: ${MAIL_FROM_NAME:Salunkhe Clinic Portal}
 
 # CORS

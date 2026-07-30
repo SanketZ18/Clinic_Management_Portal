@@ -16,17 +16,21 @@ import java.util.Map;
 /**
  * EmailService — supports:
  *   1. Resend HTTP API (if RESEND_API_KEY is configured — required for Render cloud)
- *   2. Gmail / Custom SMTP (if SPRING_MAIL_USERNAME & SPRING_MAIL_PASSWORD are configured)
- *   3. Local Dev Console Fallback (logs OTP directly in server console for easy testing)
+ *   2. Brevo HTTP API (if BREVO_API_KEY is configured — works on Render cloud)
+ *   3. Gmail / Custom SMTP (if SPRING_MAIL_USERNAME & SPRING_MAIL_PASSWORD are configured)
  */
 @Service
 @Slf4j
 public class EmailService {
 
     private static final String RESEND_API_URL = "https://api.resend.com/emails";
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
     @Value("${resend.api-key:}")
     private String resendApiKey;
+
+    @Value("${brevo.api-key:}")
+    private String brevoApiKey;
 
     @Value("${spring.mail.username:}")
     private String smtpUsername;
@@ -56,7 +60,13 @@ public class EmailService {
             }
         }
 
-        // Priority 2: JavaMailSender (Gmail / Custom SMTP)
+        // Priority 2: Brevo HTTP API (HTTPS/443 works on cloud hosts such as Render)
+        if (brevoApiKey != null && !brevoApiKey.isBlank()) {
+            sendViaBrevoApi(toEmail, otp, doctorName);
+            return;
+        }
+
+        // Priority 3: JavaMailSender (Gmail / Custom SMTP; may be blocked by cloud hosts)
         if (javaMailSender != null && smtpUsername != null && !smtpUsername.isBlank() && smtpPassword != null && !smtpPassword.isBlank()) {
             try {
                 sendViaSmtp(toEmail, otp, doctorName);
@@ -72,8 +82,50 @@ public class EmailService {
         // If neither is configured, raise a clear error
         log.error("Email service error: Missing email credentials in environment variables.");
         throw new ValidationException(
-            "Email credentials missing. Please configure RESEND_API_KEY or SPRING_MAIL_USERNAME & SPRING_MAIL_PASSWORD in environment variables."
+            "Email credentials missing. Please configure RESEND_API_KEY, BREVO_API_KEY, or SPRING_MAIL_USERNAME & SPRING_MAIL_PASSWORD in environment variables."
         );
+    }
+
+    private void sendViaBrevoApi(String toEmail, String otp, String doctorName) {
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+            headers.set("api-key", brevoApiKey.trim());
+
+            Map<String, Object> sender = Map.of(
+                "name", fromName,
+                "email", fromEmail
+            );
+            Map<String, Object> recipient = Map.of("email", toEmail);
+            Map<String, Object> body = Map.of(
+                "sender", sender,
+                "to", java.util.List.of(recipient),
+                "subject", fromName + " — Password Reset Verification Code",
+                "htmlContent", buildOtpEmailContent(doctorName, otp)
+            );
+
+            ResponseEntity<Map> response = restTemplate.postForEntity(
+                BREVO_API_URL,
+                new HttpEntity<>(body, headers),
+                Map.class
+            );
+
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new ValidationException("Brevo rejected the email request: " + response.getStatusCode());
+            }
+            log.info("OTP email sent successfully to {} via Brevo API", toEmail);
+        } catch (ValidationException ve) {
+            throw ve;
+        } catch (org.springframework.web.client.HttpStatusCodeException httpEx) {
+            log.error("Brevo API HTTP Error [{}] body: {}", httpEx.getStatusCode(), httpEx.getResponseBodyAsString());
+            throw new ValidationException(
+                "Brevo email delivery failed. Verify BREVO_API_KEY and MAIL_FROM_EMAIL in Render."
+            );
+        } catch (Exception e) {
+            log.error("Failed to send OTP email to {} via Brevo API: {}", toEmail, e.getMessage(), e);
+            throw new ValidationException("Failed to send email through Brevo. Please try again later.");
+        }
     }
 
     private void sendViaResendApi(String toEmail, String otp, String doctorName) {

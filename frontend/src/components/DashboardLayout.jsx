@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, Stethoscope, ClipboardList, BookOpen,
-  User, LogOut, Shield, AlertCircle
+  User, LogOut, Shield, AlertCircle, CircleHelp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import logo from '../assets/images/logo.jpeg';
@@ -59,6 +59,7 @@ const DashboardLayout = () => {
       : []),
     { to: `${basePath}/research`, icon: BookOpen, label: 'Research Feed', desc: 'Clinical insights' },
     { to: `${basePath}/profile`, icon: User, label: 'My Profile', desc: 'Manage & update profile' },
+    { to: `${basePath}/guide`, icon: CircleHelp, label: 'User Guide', desc: 'Learn the workflow' },
   ];
 
   const handleLogout = () => {

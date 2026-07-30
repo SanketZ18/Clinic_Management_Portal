@@ -18,6 +18,7 @@ import DayReport from './pages/dashboard/DayReport';
 import Research from './pages/dashboard/Research';
 import Profile from './pages/dashboard/Profile';
 import ManageDoctors from './pages/dashboard/ManageDoctors';
+import UserGuide from './pages/dashboard/UserGuide';
 
 // Scroll to top on every route change
 function ScrollToTop() {
@@ -53,6 +54,7 @@ function App() {
             <Route path="logs" element={<DayReport />} />
             <Route path="research" element={<Research />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="guide" element={<UserGuide />} />
             <Route path="inquiry" element={<Navigate to="/doctor/new-patient" replace />} />
             <Route path="register" element={<Navigate to="/doctor/logs" replace />} />
             <Route path="report" element={<Navigate to="/doctor/logs" replace />} />
@@ -68,6 +70,7 @@ function App() {
             <Route path="logs" element={<DayReport />} />
             <Route path="research" element={<Research />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="guide" element={<UserGuide />} />
             <Route path="manage-doctors" element={<ManageDoctors />} />
             <Route path="inquiry" element={<Navigate to="/super-admin/new-patient" replace />} />
             <Route path="register" element={<Navigate to="/super-admin/logs" replace />} />

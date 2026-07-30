@@ -262,7 +262,7 @@ const About = () => {
           <div className="container">
             <div className="text-center" style={{ marginBottom: '3rem' }}>
               <div className="section-label">Core Values</div>
-              <h2>Designed for Scientific Homeopathy</h2>
+              <h2>Built for Clinics of All Specialties</h2>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '2rem' }}>

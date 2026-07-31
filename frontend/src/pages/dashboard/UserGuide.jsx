@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  ArrowRight, BookOpen, CheckCircle2, ChevronDown, ClipboardList,
+  ArrowDown, ArrowRight, BookOpen, CheckCircle2, ChevronDown, ClipboardList,
   Download, FileText, HelpCircle, Lightbulb, LockKeyhole, Search,
-  Share2, ShieldCheck, Stethoscope, User, UserRoundPlus, XCircle,
+  ShieldCheck, Stethoscope, User, UserRoundPlus,
 } from 'lucide-react';
 
 const sections = [
@@ -46,7 +46,7 @@ const sections = [
     id: 'reports', icon: ClipboardList, title: 'Report Generation: review and export records',
     intro: 'Reports are based on the selected date range. The list contains visit records for your account, and today’s list updates when a new visit is saved.',
     steps: [
-      'Choose Today, This Week, This Month, or Custom Range. For Custom Range, select both dates and load the records.',
+      'Choose Today, This Week, This Month, This Year, or Custom Range. For Custom Range, select both dates and load the records.',
       'Use the search box to filter the visible list by patient details, complaint, diagnosis, remedy, phone, or visit type.',
       'Check the filtered list before exporting. The PDF includes only the records currently shown by the date filter and search.',
     ],
@@ -105,16 +105,46 @@ const UserGuide = () => {
         <div className="user-guide-hero-mark"><ShieldCheck size={46} /><span>Private clinic workspace</span></div>
       </motion.section>
 
-      <section className="user-guide-flow" aria-label="Recommended workflow">
-        <div className="user-guide-flow-title"><Lightbulb size={18} /> Recommended daily flow</div>
-        {[
-          [1, UserRoundPlus, 'Find or add patient', 'New Patient'],
-          [2, FileText, 'Record consultation', 'Details + clinical notes'],
-          [3, CheckCircle2, 'Generate or share', 'PDF / WhatsApp / Email'],
-          [4, ClipboardList, 'Review and report', 'Report Generation'],
-        ].map(([number, Icon, title, caption]) => (
-          <div className="user-guide-flow-step" key={number}><span>{number}</span><Icon size={18} /><div><strong>{title}</strong><small>{caption}</small></div></div>
-        ))}
+      <section className="user-guide-system-flow" aria-labelledby="system-flow-title">
+        <div className="user-guide-system-heading">
+          <span className="user-guide-flow-kicker"><Lightbulb size={15} /> Start here</span>
+          <h3 id="system-flow-title">How the clinic system works</h3>
+          <p>Follow this order for almost every patient visit.</p>
+        </div>
+        <div className="user-guide-system-steps">
+          {[
+            [1, UserRoundPlus, 'Patient', 'Find or add'],
+            [2, FileText, 'Consultation', 'Enter details'],
+            [3, CheckCircle2, 'Prescription', 'Save or share'],
+            [4, ClipboardList, 'Records', 'Review reports'],
+            [5, Search, 'Follow-up', 'Use history'],
+          ].map(([number, Icon, title, caption]) => (
+            <div className="user-guide-system-step" key={number}>
+              <span>{number}</span><Icon size={18} /><strong>{title}</strong><small>{caption}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="user-guide-day-flow" aria-labelledby="day-flow-title">
+        <div className="user-guide-day-flow-heading">
+          <div><span className="user-guide-flow-kicker"><Lightbulb size={15} /> Recommended day flow</span><h3 id="day-flow-title">One visit, from start to finish</h3></div>
+          <p>Complete each step in order. You can return to the previous step whenever you need to correct something.</p>
+        </div>
+        <div className="user-guide-waterfall">
+          {[
+            [1, UserRoundPlus, 'Open New Patient', 'Start a new consultation from the dashboard. Search by patient name and mobile number first.'],
+            [2, FileText, 'Check or enter patient details', 'Auto-fill an existing patient, or enter the details as a new patient. Then record the complaint, diagnosis, notes, remedy, dosage, and follow-up.'],
+            [3, CheckCircle2, 'Save the visit', 'Save to today’s list so the visit is stored in the day register. Add another remedy if the prescription needs more than one.'],
+            [4, Download, 'Give the prescription to the patient', 'Download a PDF, or send it through WhatsApp or email. Verify the patient name and mobile number before sharing.'],
+            [5, ClipboardList, 'Review the day and plan follow-up', 'Open Report Generation to check visits, download a report, or open a patient’s complete history for the next consultation.'],
+          ].map(([number, Icon, title, description], index, flow) => (
+            <div className="user-guide-waterfall-step" key={number}>
+              <div className="user-guide-waterfall-marker"><span>{number}</span>{index < flow.length - 1 && <ArrowDown size={16} />}</div>
+              <div><strong><Icon size={15} /> {title}</strong><p>{description}</p></div>
+            </div>
+          ))}
+        </div>
       </section>
 
       <div className="user-guide-note"><LockKeyhole size={17} /><span><strong>Privacy reminder:</strong> Always verify the patient name and mobile number before auto-filling, exporting, or sharing a prescription.</span></div>

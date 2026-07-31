@@ -63,6 +63,14 @@ const getPresetRange = (preset) => {
         label: now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
       };
     }
+    case 'year': {
+      const first = new Date(now.getFullYear(), 0, 1);
+      const last = new Date(now.getFullYear(), 11, 31);
+      return {
+        from: toISODate(first), to: toISODate(last),
+        label: `Year: ${now.getFullYear()}`,
+      };
+    }
     default:
       return null;
   }
@@ -72,6 +80,7 @@ const FILTER_PRESETS = [
   { id: 'today', label: 'Today' },
   { id: 'week', label: 'This Week' },
   { id: 'month', label: 'This Month' },
+  { id: 'year', label: 'This Year' },
   { id: 'custom', label: 'Custom Range' },
 ];
 
@@ -534,7 +543,7 @@ const DayReport = () => {
           <p style={{ maxWidth: '420px', margin: '8px auto 0', fontSize: '0.88rem' }}>
             {activePreset === 'today'
               ? 'Open the Patient Inquiry tab to generate prescriptions and register patients.'
-              : `No visits found for the selected ${activePreset === 'week' ? 'week' : activePreset === 'month' ? 'month' : 'date range'}.`}
+              : `No visits found for the selected ${activePreset === 'week' ? 'week' : activePreset === 'month' ? 'month' : activePreset === 'year' ? 'year' : 'date range'}.`}
           </p>
         </div>
       ) : (

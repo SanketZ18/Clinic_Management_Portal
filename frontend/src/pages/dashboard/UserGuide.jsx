@@ -91,7 +91,7 @@ const sections = [
 const UserGuide = () => {
   const location = useLocation();
   const basePath = location.pathname.startsWith('/super-admin') ? '/super-admin' : '/doctor';
-  const [openSections, setOpenSections] = useState(() => new Set(['prescription']));
+  const [openSections, setOpenSections] = useState(() => new Set());
 
   const toggleSection = (id) => {
     setOpenSections((current) => {

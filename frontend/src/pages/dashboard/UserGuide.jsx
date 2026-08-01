@@ -28,7 +28,7 @@ const sections = [
     intro: 'Use this screen during a consultation. Required fields are marked with an asterisk (*). A prescription is saved with the patient record when it is generated or shared.',
     steps: [
       'For a returning patient, open New Patient and use the Patient Lookup area before entering the consultation details.',
-      'Enter the patientâ€™s full name and the same mobile number used during the previous visit. Both values are required to find the correct patient record.',
+      'Enter the patients full name and the same mobile number used during the previous visit. Both values are required to find the correct patient record.',
       'Select Search Patient. The system checks the existing patient records belonging to your account. A match shows the patient name and the number of previous visits; the latest visit summary may also be displayed.',
       'Check that the result belongs to the correct person, then select Auto-fill Form. The saved name, age, gender, blood group, mobile number, email, address, and referred-by details are copied into the new prescription form.',
       'Review the copied details and update anything that has changed. Enter the new visit type, complaints, diagnosis, notes, remedies, dosage, instructions, and follow-up information for this consultation.',
@@ -134,6 +134,44 @@ const UserGuide = () => {
         </div>
       </section>
 
+      <div className="user-guide-workflow-grid">
+      <section className="user-guide-returning-flow" aria-labelledby="returning-patient-flow-title">
+        <div className="user-guide-returning-heading">
+          <span className="user-guide-flow-kicker"><UserRoundPlus size={15} /> Returning patient shortcut</span>
+          <h3 id="returning-patient-flow-title">Find an old patient and start a new prescription</h3>
+          <p>Use this separate path whenever the patient has visited the clinic before.</p>
+        </div>
+        <div className="user-guide-returning-hierarchy">
+          <div className="user-guide-returning-node user-guide-returning-start">
+            <span>1</span><div><strong>Open New Patient</strong><small>Start a new prescription from the dashboard.</small></div>
+          </div>
+          <ArrowDown className="user-guide-returning-arrow" size={18} />
+          <div className="user-guide-returning-node">
+            <span>2</span><div><strong>Patient Lookup</strong><small>Enter the patient&apos;s full name and mobile number.</small></div>
+          </div>
+          <ArrowDown className="user-guide-returning-arrow" size={18} />
+          <div className="user-guide-returning-node">
+            <span>3</span><div><strong>Search Patient</strong><small>The system checks your existing patient records using both details.</small></div>
+          </div>
+          <div className="user-guide-returning-branch">
+            <div className="user-guide-returning-result user-guide-returning-found">
+              <CheckCircle2 size={17} /><div><strong>Patient found</strong><small>Confirm the name and previous visit count.</small><b>↓ Select Auto-fill Form</b></div>
+            </div>
+            <div className="user-guide-returning-result user-guide-returning-new">
+              <UserRoundPlus size={17} /><div><strong>No match found</strong><small>Enter the details manually as a new patient.</small><b>↓ Continue with the form</b></div>
+            </div>
+          </div>
+          <div className="user-guide-returning-node user-guide-returning-final">
+            <span>4</span><div><strong>Review and continue</strong><small>Auto-fill copies saved contact details. Add the new complaints, diagnosis, remedies, dosage, and follow-up.</small></div>
+          </div>
+          <ArrowDown className="user-guide-returning-arrow" size={18} />
+          <div className="user-guide-returning-node user-guide-returning-save">
+            <span>5</span><div><strong>Save or share the prescription</strong><small>The new visit is added to the same patient record; the old prescription stays unchanged.</small></div>
+          </div>
+        </div>
+        <div className="user-guide-returning-tip"><Search size={15} /><span>Need every previous visit? Open Report Generation and use Patient History PDF for the patient&apos;s complete chronological history.</span></div>
+      </section>
+
       <section className="user-guide-day-flow" aria-labelledby="day-flow-title">
         <div className="user-guide-day-flow-heading">
           <div><span className="user-guide-flow-kicker"><Lightbulb size={15} /> Recommended day flow</span><h3 id="day-flow-title">One visit, from start to finish</h3></div>
@@ -154,6 +192,7 @@ const UserGuide = () => {
           ))}
         </div>
       </section>
+      </div>
 
       <div className="user-guide-note"><LockKeyhole size={17} /><span><strong>Privacy reminder:</strong> Always verify the patient name and mobile number before auto-filling, exporting, or sharing a prescription.</span></div>
 

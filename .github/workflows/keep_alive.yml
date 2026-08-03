@@ -1,0 +1,25 @@
+name: Keep Render Server Alive
+
+on:
+  schedule:
+    # Runs every 14 minutes to prevent Render free-tier from sleeping (15 min inactivity limit)
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allows manual triggering from GitHub Actions tab
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Backend Health Endpoint
+        run: |
+          URL="${{ secrets.RENDER_BACKEND_URL }}"
+          if [ -z "$URL" ]; then
+            URL="https://clinic-management-portal.onrender.com/api/auth/health"
+          else
+            # Append health endpoint path if secret only contains host
+            if [[ "$URL" != *"/api/auth/health" ]]; then
+              URL="${URL%/}/api/auth/health"
+            fi
+          fi
+          echo "Pinging backend at: $URL"
+          curl -s -o /dev/null -w "%{http_code}" "$URL"

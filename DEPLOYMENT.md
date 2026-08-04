@@ -76,3 +76,6 @@ If your Render URL changes in the future:
 4. Value: `https://your-actual-render-url.onrender.com`
 5. Click **Add secret**.
 
+### Cron-job.org - To keep server alive 24/7
+Title : Keep Render Backend Alive
+URL : https://clinic-management-portal.onrender.com/api/auth/health

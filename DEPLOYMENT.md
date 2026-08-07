@@ -20,7 +20,7 @@ Since Render doesn't support Java natively in all tiers, we've set up a `Dockerf
    - **Instance Type**: Select the Free tier (or standard tier).
 5. Click **Advanced** and add the following **Environment Variables**:
    - `JWT_SECRET`: A secure random secret string (e.g., `your-super-long-random-secret-key-32-chars-or-more`).
-   - `MONGO_URI`: `mongodb+srv://akaramsalunke:Abb1234567%40@clinic.l3elgjk.mongodb.net/ClinicSystem?appName=Clinic` (Your MongoDB connection string).
+   - `MONGO_URI`: `mongodb+srv://<username>:<password>@cluster.mongodb.net/ClinicSystem?appName=Clinic` (Your MongoDB connection string).
    - `MONGO_DB`: `ClinicSystem`
    - `FRONTEND_URL`: The URL of your Vercel frontend (e.g., `https://your-app.vercel.app`).
 6. Click **Create Web Service**.

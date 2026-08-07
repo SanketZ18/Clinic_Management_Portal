@@ -13,7 +13,7 @@ spring:
 
   data:
     mongodb:
-      uri: ${MONGO_URI:mongodb+srv://akaramsalunke:Abb1234567%40@clinic.l3elgjk.mongodb.net/ClinicSystem?appName=Clinic}
+      uri: ${MONGO_URI:mongodb://localhost:27017/ClinicSystem}
       database: ${MONGO_DB:ClinicSystem}
       pool:
         max-size: 50

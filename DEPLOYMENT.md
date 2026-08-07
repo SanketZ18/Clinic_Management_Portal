@@ -62,20 +62,11 @@ Vercel will build the frontend, configure SPA routing using the included `vercel
 
 ## 4. Keeping Render Backend Awake (Prevent Sleep Mode)
 
-Render free instances spin down after 15 minutes of inactivity. A GitHub Action workflow is included in `.github/workflows/keep_alive.yml` to automatically ping your backend every 14 minutes.
+Render free instances spin down after 15 minutes of inactivity. We use **cron-job.org** to automatically ping the backend health endpoint every 8–10 minutes to ensure 24/7 availability.
 
-### How it Works:
-- Runs automatically on a 14-minute cron schedule.
-- Pings `https://clinic-management-portal.onrender.com/api/auth/health`.
+### Configuration on cron-job.org:
+- **Title**: `Keep Render Backend Alive`
+- **URL**: `https://clinic-management-portal.onrender.com/api/auth/health`
+- **Method**: `GET`
+- **Execution Interval**: Every 8–10 minutes
 
-### (Optional) Customizing the Backend URL in GitHub:
-If your Render URL changes in the future:
-1. Go to your GitHub Repository -> **Settings** -> **Secrets and variables** -> **Actions**.
-2. Click **New repository secret**.
-3. Name: `RENDER_BACKEND_URL`
-4. Value: `https://your-actual-render-url.onrender.com`
-5. Click **Add secret**.
-
-### Cron-job.org - To keep server alive 24/7
-Title : Keep Render Backend Alive
-URL : https://clinic-management-portal.onrender.com/api/auth/health
